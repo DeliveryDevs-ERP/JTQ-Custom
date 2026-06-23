@@ -25,8 +25,14 @@ doc_events = {
 	"Attendance": {
 		"before_validate": "jtq_custom.attendance.calculate_attendance_time_fields",
 	},
+	"City": {
+		"validate": "jtq_custom.master_utils.set_master_id",
+	},
 	"Compensatory Leave Request": {
 		"validate": "jtq_custom.compensatory_leave.validate_compensatory_leave_working_hours",
+	},
+	"Province": {
+		"validate": "jtq_custom.master_utils.set_master_id",
 	},
 	"Additional Salary": {
 		"before_validate": "jtq_custom.payroll.sync_additional_salary_controls",

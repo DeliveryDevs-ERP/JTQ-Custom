@@ -3,6 +3,7 @@
  "allow_rename": 1,
  "autoname": "WorkMode-.##",
  "creation": "2026-06-22 15:24:51.205057",
+ "custom": 1,
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
