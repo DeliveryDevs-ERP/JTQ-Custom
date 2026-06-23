@@ -6,8 +6,13 @@ app_email = "admin@example.com"
 app_license = "mit"
 
 doctype_js = {
+	"Attendance": "public/js/attendance.js",
 	"JTQ Bulk Attendance": "public/js/jtq_bulk_attendance.js",
 	"Salary Structure": "public/js/salary_structure.js",
+}
+
+doctype_list_js = {
+	"Attendance": "public/js/attendance_list.js",
 }
 
 override_doctype_class = {
@@ -17,6 +22,12 @@ override_doctype_class = {
 }
 
 doc_events = {
+	"Attendance": {
+		"before_validate": "jtq_custom.attendance.calculate_attendance_time_fields",
+	},
+	"Compensatory Leave Request": {
+		"validate": "jtq_custom.compensatory_leave.validate_compensatory_leave_working_hours",
+	},
 	"Additional Salary": {
 		"before_validate": "jtq_custom.payroll.sync_additional_salary_controls",
 		"before_update_after_submit": "jtq_custom.payroll.sync_additional_salary_controls",
@@ -37,4 +48,7 @@ after_migrate = [
 	"jtq_custom.patches.add_employee_location_work_mode_fields.execute",
 	"jtq_custom.patches.add_advance_salary_recovery_controls.execute",
 	"jtq_custom.patches.add_salary_structure_auto_component_fields.execute",
+	"jtq_custom.patches.add_attendance_time_calculation_fields.execute",
+	"jtq_custom.patches.update_custom_master_fields.execute",
+	"jtq_custom.patches.add_compensatory_leave_working_hours_field.execute",
 ]

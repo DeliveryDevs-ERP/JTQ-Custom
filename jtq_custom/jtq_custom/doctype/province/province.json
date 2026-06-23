@@ -1,18 +1,35 @@
 {
  "actions": [],
  "allow_rename": 1,
+ "autoname": "Name-.####",
  "creation": "2026-06-22 15:01:06.936234",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "master_id",
+  "title",
   "province_name"
  ],
  "fields": [
   {
+   "fieldname": "master_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title",
+   "reqd": 1
+  },
+  {
    "fieldname": "province_name",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Province Name",
+   "label": "Name",
    "reqd": 1
   }
  ],
@@ -23,6 +40,7 @@
  "modified_by": "Administrator",
  "module": "JTQ Custom",
  "name": "Province",
+ "naming_rule": "Expression",
  "owner": "Administrator",
  "permissions": [
   {
@@ -43,5 +61,6 @@
  "rows_threshold_for_grid_search": 20,
  "sort_field": "modified",
  "sort_order": "DESC",
- "states": []
+ "states": [],
+ "title_field": "title"
 }

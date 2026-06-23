@@ -2,19 +2,35 @@
  "actions": [],
  "allow_import": 1,
  "allow_rename": 1,
- "autoname": "field:city_name",
+ "autoname": "Name-.####",
  "creation": "2026-06-22 00:00:00",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "master_id",
+  "title",
   "city_name"
  ],
  "fields": [
   {
+   "fieldname": "master_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title",
+   "reqd": 1
+  },
+  {
    "fieldname": "city_name",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "City Name",
+   "label": "Name",
    "reqd": 1,
    "unique": 1
   }
@@ -26,7 +42,7 @@
  "modified_by": "Administrator",
  "module": "JTQ Custom",
  "name": "City",
- "naming_rule": "By fieldname",
+ "naming_rule": "Expression",
  "owner": "Administrator",
  "permissions": [
   {
@@ -67,5 +83,5 @@
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],
- "title_field": "city_name"
+ "title_field": "title"
 }
