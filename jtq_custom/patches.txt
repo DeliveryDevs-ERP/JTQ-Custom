@@ -1,0 +1,8 @@
+[pre_model_sync]
+
+[post_model_sync]
+jtq_custom.patches.add_bulk_attendance_custom_fields
+jtq_custom.patches.add_payroll_entry_location_fields
+jtq_custom.patches.add_employee_location_work_mode_fields
+jtq_custom.patches.add_advance_salary_recovery_controls
+jtq_custom.patches.add_salary_structure_auto_component_fields

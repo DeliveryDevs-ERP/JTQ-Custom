@@ -1,0 +1,223 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "allow_rename": 1,
+ "autoname": "JTQ-BA-.YYYY.-.#####",
+ "creation": "2026-06-10 00:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "filters_section",
+  "from_date",
+  "to_date",
+  "shift",
+  "company",
+  "column_break_filters",
+  "branch",
+  "employee_group",
+  "department",
+  "employment_type",
+  "designation",
+  "employee_grade",
+  "include_holidays",
+  "employees_section",
+  "employees",
+  "summary_section",
+  "total_employees",
+  "total_dates",
+  "processed_count",
+  "failed_count",
+  "processing_status"
+ ],
+ "fields": [
+  {
+   "fieldname": "filters_section",
+   "fieldtype": "Section Break",
+   "label": "Filters"
+  },
+  {
+   "fieldname": "from_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "From Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "to_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "To Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "shift",
+   "fieldtype": "Link",
+   "label": "Shift",
+   "options": "Shift Type"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_filters",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "branch",
+   "fieldtype": "Link",
+   "label": "Branch",
+   "options": "Branch"
+  },
+  {
+   "fieldname": "employee_group",
+   "fieldtype": "Link",
+   "label": "Employee Group",
+   "options": "Employee Group"
+  },
+  {
+   "fieldname": "department",
+   "fieldtype": "Link",
+   "label": "Department",
+   "options": "Department"
+  },
+  {
+   "fieldname": "employment_type",
+   "fieldtype": "Link",
+   "label": "Employment Type",
+   "options": "Employment Type"
+  },
+  {
+   "fieldname": "designation",
+   "fieldtype": "Link",
+   "label": "Designation",
+   "options": "Designation"
+  },
+  {
+   "fieldname": "employee_grade",
+   "fieldtype": "Link",
+   "label": "Employee Grade",
+   "options": "Employee Grade"
+  },
+  {
+   "default": "1",
+   "description": "When checked, holiday dates are skipped during attendance processing.",
+   "fieldname": "include_holidays",
+   "fieldtype": "Check",
+   "label": "Exclude Holidays"
+  },
+  {
+   "fieldname": "employees_section",
+   "fieldtype": "Section Break",
+   "label": "Employees"
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "employees",
+   "fieldtype": "Table",
+   "label": "Employees",
+   "options": "JTQ Bulk Attendance Employee"
+  },
+  {
+   "fieldname": "summary_section",
+   "fieldtype": "Section Break",
+   "label": "Processing Summary"
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "total_employees",
+   "fieldtype": "Int",
+   "label": "Total Employees",
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "total_dates",
+   "fieldtype": "Int",
+   "label": "Total Dates",
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "processed_count",
+   "fieldtype": "Int",
+   "label": "Processed Count",
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "failed_count",
+   "fieldtype": "Int",
+   "label": "Failed Count",
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "default": "Draft",
+   "fieldname": "processing_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Processing Status",
+   "options": "Draft\nEmployees Loaded\nQueued\nIn Progress\nProcessed\nPartial\nFailed",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-06-10 00:00:00",
+ "modified_by": "Administrator",
+ "module": "JTQ Custom",
+ "name": "JTQ Bulk Attendance",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR User",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "processing_status",
+ "track_changes": 1
+}
