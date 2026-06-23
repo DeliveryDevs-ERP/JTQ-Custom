@@ -10,7 +10,6 @@ MASTER_DOCTYPES = {
 	"Province": {
 		"app": "jtq_custom",
 		"doctype": "province",
-		"name_field": "province_name",
 	},
 	"Region": {
 		"app": "donation_management",
@@ -31,24 +30,24 @@ def execute():
 			continue
 
 		frappe.reload_doc(details["app"], "doctype", details["doctype"])
-		backfill_master_records(doctype, details["name_field"])
+		backfill_master_records(doctype, details.get("name_field"))
 
 
 def backfill_master_records(doctype, name_field):
 	meta = frappe.get_meta(doctype)
-	if not meta.has_field("master_id") or not meta.has_field("title") or not meta.has_field(name_field):
+	if not meta.has_field("master_id") or not meta.has_field("title"):
 		return
 
-	for record in frappe.get_all(doctype, fields=["name", "master_id", "title", name_field]):
-		title = record.title or record.get(name_field) or record.name
-		display_name = record.get(name_field) or record.title or record.name
-		frappe.db.set_value(
-			doctype,
-			record.name,
-			{
-				"master_id": record.name,
-				"title": title,
-				name_field: display_name,
-			},
-			update_modified=False,
-		)
+	fields = ["name", "master_id", "title"]
+	if name_field and meta.has_field(name_field):
+		fields.append(name_field)
+
+	for record in frappe.get_all(doctype, fields=fields):
+		values = {
+			"master_id": record.name,
+			"title": record.title or record.get(name_field) or record.name,
+		}
+		if name_field and meta.has_field(name_field):
+			values[name_field] = record.get(name_field) or record.title or record.name
+
+		frappe.db.set_value(doctype, record.name, values, update_modified=False)
