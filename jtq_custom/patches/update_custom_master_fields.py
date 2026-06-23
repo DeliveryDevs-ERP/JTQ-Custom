@@ -5,7 +5,6 @@ MASTER_DOCTYPES = {
 	"City": {
 		"app": "jtq_custom",
 		"doctype": "city",
-		"name_field": "city_name",
 	},
 	"Province": {
 		"app": "jtq_custom",

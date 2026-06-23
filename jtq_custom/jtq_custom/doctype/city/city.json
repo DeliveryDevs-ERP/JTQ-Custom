@@ -8,8 +8,7 @@
  "engine": "InnoDB",
  "field_order": [
   "master_id",
-  "title",
-  "city_name"
+  "title"
  ],
  "fields": [
   {
@@ -25,14 +24,6 @@
    "in_list_view": 1,
    "label": "Title",
    "reqd": 1
-  },
-  {
-   "fieldname": "city_name",
-   "fieldtype": "Data",
-   "in_list_view": 1,
-   "label": "Name",
-   "reqd": 1,
-   "unique": 1
   }
  ],
  "grid_page_length": 50,
