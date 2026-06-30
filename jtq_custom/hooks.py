@@ -8,6 +8,7 @@ app_license = "mit"
 doctype_js = {
 	"Attendance": "public/js/attendance.js",
 	"JTQ Bulk Attendance": "public/js/jtq_bulk_attendance.js",
+	"Payroll Entry": "public/js/payroll_entry.js",
 	"Salary Structure": "public/js/salary_structure.js",
 }
 
@@ -19,6 +20,10 @@ override_doctype_class = {
 	"Payroll Entry": "jtq_custom.overrides.payroll_entry.JTQPayrollEntry",
 	"Salary Slip": "jtq_custom.overrides.salary_slip.JTQSalarySlip",
 	"Salary Structure": "jtq_custom.overrides.salary_structure.JTQSalaryStructure",
+}
+
+override_whitelisted_methods = {
+	"hrms.payroll.doctype.payroll_entry.payroll_entry.employee_query": "jtq_custom.overrides.payroll_entry.employee_query",
 }
 
 doc_events = {

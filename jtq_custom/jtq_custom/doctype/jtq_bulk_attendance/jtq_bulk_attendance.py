@@ -283,7 +283,7 @@ def get_row_exception_dates(doc, row):
 		return set()
 
 	dates = set()
-	for value in re.split(r"[,\\n]+", row.dates):
+	for value in re.split(r"[,\n]+", row.dates):
 		value = value.strip()
 		if not value:
 			continue
@@ -301,10 +301,14 @@ def get_row_exception_dates(doc, row):
 
 def parse_row_date(doc, row, value):
 	if value.isdigit():
+		parsed_date = parse_day_number_date(doc, row, value)
+		if parsed_date:
+			return parsed_date
+
 		if getdate(doc.from_date).strftime("%Y-%m") != getdate(doc.to_date).strftime("%Y-%m"):
 			frappe.throw(
 				frappe._(
-					"Day number {0} in row {1} is only allowed when From Date and To Date are in the same month. Please enter a full date."
+					"Day number {0} in row {1} is ambiguous for this date range. Please enter a full date."
 				).format(value, row.idx)
 			)
 
@@ -314,6 +318,35 @@ def parse_row_date(doc, row, value):
 		return getdate(value)
 	except Exception:
 		frappe.throw(frappe._("Invalid date {0} in row {1}.").format(value, row.idx))
+
+
+def parse_day_number_date(doc, row, value):
+	day = cint(value)
+	if day < 1 or day > 31:
+		frappe.throw(frappe._("Invalid day number {0} in row {1}.").format(value, row.idx))
+
+	from_date = getdate(doc.from_date)
+	to_date = getdate(doc.to_date)
+	month_start = getdate(f"{from_date.strftime('%Y-%m')}-01")
+	candidates = []
+
+	current = month_start
+	while current <= to_date:
+		try:
+			candidate = getdate(f"{current.strftime('%Y-%m')}-{day:02d}")
+		except Exception:
+			candidate = None
+
+		if candidate and from_date <= candidate <= to_date:
+			candidates.append(candidate)
+
+		current = add_days(getdate(f"{current.strftime('%Y-%m')}-01"), 32)
+		current = getdate(f"{current.strftime('%Y-%m')}-01")
+
+	if len(candidates) == 1:
+		return candidates[0]
+
+	return None
 
 
 def process_employee_attendance_date(doc, row, attendance_date):

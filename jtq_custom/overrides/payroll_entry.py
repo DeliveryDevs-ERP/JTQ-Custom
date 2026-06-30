@@ -9,10 +9,7 @@ from hrms.payroll.doctype.payroll_entry.payroll_entry import (
 
 class JTQPayrollEntry(PayrollEntry):
 	def make_filters(self):
-		filters = super().make_filters()
-		for fieldname in get_jtq_payroll_filter_fields():
-			filters[fieldname] = self.get(fieldname)
-		return filters
+		return super().make_filters()
 
 	@frappe.whitelist()
 	def fill_employee_details(self):
@@ -46,7 +43,7 @@ class JTQPayrollEntry(PayrollEntry):
 		if len(employee_filters) == 1:
 			return employees
 
-		matching_employees = set(frappe.get_all("Employee", filters=employee_filters, pluck="name"))
+		matching_employees = set(get_matching_employees(employee_filters, self))
 		return [employee for employee in employees if employee.employee in matching_employees]
 
 	def has_jtq_payroll_filters(self):
@@ -85,6 +82,7 @@ def get_jtq_payroll_filter_map():
 		"custom_city": "custom_city",
 		"custom_country": "custom_country",
 		"custom_province": "custom_province",
+		"custom_region": "custom_region",
 		"custom_madrasa": "custom_madrasa",
 	}
 
@@ -99,5 +97,99 @@ def get_jtq_payroll_filter_labels():
 		"custom_city": _("City"),
 		"custom_country": _("Country"),
 		"custom_province": _("Province"),
+		"custom_region": _("Region"),
 		"custom_madrasa": _("Madrasa"),
 	}
+
+
+def get_matching_employees(employee_filters, payroll_entry):
+	exact_matches = set(frappe.get_all("Employee", filters=employee_filters, pluck="name"))
+	legacy_matches = get_legacy_title_matches(employee_filters, payroll_entry)
+	return exact_matches | legacy_matches
+
+
+def get_legacy_title_matches(employee_filters, payroll_entry):
+	conditions = ["name in %(employees)s"]
+	values = {"employees": employee_filters["name"][1]}
+
+	for payroll_field, employee_field in get_jtq_payroll_filter_map().items():
+		value = payroll_entry.get(payroll_field)
+		if not value:
+			continue
+
+		candidates = get_filter_value_candidates(payroll_field, value)
+		if not candidates:
+			candidates = [value]
+
+		conditions.append(f"`{employee_field}` in %({employee_field})s")
+		values[employee_field] = tuple(candidates)
+
+	return set(
+		frappe.db.sql(
+			f"""
+			select name
+			from `tabEmployee`
+			where {" and ".join(conditions)}
+			""",
+			values,
+			pluck=True,
+		)
+	)
+
+
+def get_filter_value_candidates(payroll_field, value):
+	link_doctype = {
+		"custom_work_mode": "Work Mode",
+		"custom_city": "City",
+		"custom_province": "Province",
+		"custom_region": "Region",
+		"custom_madrasa": "Madrasa",
+	}.get(payroll_field)
+
+	if not link_doctype:
+		return [value]
+
+	candidates = [value]
+	meta = frappe.get_meta(link_doctype)
+	for fieldname in ("title", "work_mode", "region_name", "madrasa_name", "province_name", "city_name"):
+		if meta.has_field(fieldname):
+			title = frappe.db.get_value(link_doctype, value, fieldname)
+			if title and title not in candidates:
+				candidates.append(title)
+
+	return candidates
+
+
+@frappe.whitelist()
+@frappe.validate_and_sanitize_search_inputs
+def employee_query(doctype, txt, searchfield, start, page_len, filters):
+	filters = frappe._dict(filters)
+
+	if not filters.payroll_frequency:
+		frappe.throw(_("Select Payroll Frequency."))
+
+	employee_list = get_employee_list(
+		filters,
+		searchfield=searchfield,
+		search_string=txt,
+		fields=["name", "employee_name"],
+		as_dict=False,
+		limit=page_len,
+		offset=start,
+	)
+
+	if not has_jtq_filters(filters):
+		return employee_list
+
+	employee_names = [employee[0] for employee in employee_list]
+	if not employee_names:
+		return employee_list
+
+	employee_filters = {"name": ["in", employee_names]}
+	matching_employees = get_matching_employees(employee_filters, filters)
+
+	return [employee for employee in employee_list if employee[0] in matching_employees]
+
+
+def has_jtq_filters(filters):
+	return any(filters.get(fieldname) not in (None, "") for fieldname in get_jtq_payroll_filter_fields())
