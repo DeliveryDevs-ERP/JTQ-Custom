@@ -6,6 +6,7 @@ def execute():
 	normalize_existing_fieldtypes()
 	create_custom_fields(get_custom_fields(), update=True)
 	normalize_employee_custom_fields()
+	show_employee_name_in_links()
 
 
 def get_custom_fields():
@@ -114,3 +115,34 @@ def normalize_existing_fieldtypes():
 				values,
 				update_modified=False,
 			)
+
+
+def show_employee_name_in_links():
+	make_property_setter("Employee", None, "show_title_field_in_link", "Check", "1")
+	make_property_setter("Employee", None, "search_fields", "Data", "employee_name")
+
+
+def make_property_setter(doc_type, field_name, property_name, property_type, value):
+	filters = {
+		"doc_type": doc_type,
+		"field_name": field_name,
+		"property": property_name,
+	}
+	if frappe.db.exists("Property Setter", filters):
+		property_setter = frappe.get_doc("Property Setter", filters)
+		if property_setter.value != value:
+			property_setter.value = value
+			property_setter.save(ignore_permissions=True)
+		return
+
+	frappe.get_doc(
+		{
+			"doctype": "Property Setter",
+			"doctype_or_field": "DocType" if not field_name else "DocField",
+			"doc_type": doc_type,
+			"field_name": field_name,
+			"property": property_name,
+			"property_type": property_type,
+			"value": value,
+		}
+	).insert(ignore_permissions=True)

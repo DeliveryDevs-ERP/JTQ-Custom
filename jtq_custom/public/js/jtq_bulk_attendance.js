@@ -1,5 +1,7 @@
 frappe.ui.form.on("JTQ Bulk Attendance", {
 	refresh(frm) {
+		setup_employee_grid_query(frm);
+
 		if (!frm.is_new() && frm.doc.docstatus === 0) {
 			frm.add_custom_button(__("Get Employees"), () => {
 				fetch_employees(frm, true);
@@ -23,6 +25,26 @@ frappe.ui.form.on("JTQ Bulk Attendance", {
 	designation: refetch_on_filter_change,
 	employee_grade: refetch_on_filter_change,
 });
+
+function setup_employee_grid_query(frm) {
+	const employee_field = frm.fields_dict.employees?.grid?.get_field("employee");
+	if (!employee_field) {
+		return;
+	}
+
+	employee_field.get_query = () => {
+		const filters = {
+			status: "Active",
+		};
+		if (frm.doc.company) {
+			filters.company = frm.doc.company;
+		}
+		return {
+			filters,
+			searchfield: "employee_name",
+		};
+	};
+}
 
 function process_attendance(frm) {
 	if (frm.is_new()) {

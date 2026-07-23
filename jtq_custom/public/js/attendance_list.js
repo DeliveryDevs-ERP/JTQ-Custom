@@ -1,4 +1,6 @@
 (function () {
+	ensure_jtq_attendance_indicator_styles();
+
 	const existing_settings = frappe.listview_settings["Attendance"] || {};
 	const existing_onload = existing_settings.onload;
 
@@ -50,19 +52,39 @@ function get_present_source(doc) {
 	if (doc.custom_jtq_bulk_attendance) {
 		return {
 			label: "Present",
-			color: "blue",
+			color: "jtq-present-bulk",
 		};
 	}
 
 	if (doc.attendance_request) {
 		return {
-			label: "Present - Request Approved",
-			color: "orange",
+			label: "Present",
+			color: "jtq-present-request",
 		};
 	}
 
 	return {
-		label: "Present - Standard",
+		label: "Present",
 		color: "green",
 	};
+}
+
+function ensure_jtq_attendance_indicator_styles() {
+	if (document.getElementById("jtq-attendance-indicator-styles")) {
+		return;
+	}
+
+	const style = document.createElement("style");
+	style.id = "jtq-attendance-indicator-styles";
+	style.textContent = `
+		.indicator-pill.jtq-present-bulk {
+			background: #F5C527;
+			color: #1f2933;
+		}
+		.indicator-pill.jtq-present-request {
+			background: #64DDF5;
+			color: #1f2933;
+		}
+	`;
+	document.head.appendChild(style);
 }

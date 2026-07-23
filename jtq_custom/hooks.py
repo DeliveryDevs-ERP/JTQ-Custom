@@ -7,6 +7,7 @@ app_license = "mit"
 
 doctype_js = {
 	"Attendance": "public/js/attendance.js",
+	"Attendance Request": "public/js/attendance_request.js",
 	"JTQ Bulk Attendance": "public/js/jtq_bulk_attendance.js",
 	"Payroll Entry": "public/js/payroll_entry.js",
 	"Salary Structure": "public/js/salary_structure.js",
@@ -29,6 +30,10 @@ override_whitelisted_methods = {
 doc_events = {
 	"Attendance": {
 		"before_validate": "jtq_custom.attendance.calculate_attendance_time_fields",
+		"before_submit": "jtq_custom.attendance.calculate_overtime_and_attendance_details",
+	},
+	"Attendance Request": {
+		"on_submit": "jtq_custom.attendance.update_attendance_times_from_request",
 	},
 	"City": {
 		"validate": "jtq_custom.master_utils.set_master_id",
@@ -60,6 +65,7 @@ after_migrate = [
 	"jtq_custom.patches.add_advance_salary_recovery_controls.execute",
 	"jtq_custom.patches.add_salary_structure_auto_component_fields.execute",
 	"jtq_custom.patches.add_attendance_time_calculation_fields.execute",
+	"jtq_custom.patches.add_attendance_request_time_fields.execute",
 	"jtq_custom.patches.update_custom_master_fields.execute",
 	"jtq_custom.patches.add_compensatory_leave_working_hours_field.execute",
 ]
