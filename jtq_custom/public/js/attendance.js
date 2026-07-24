@@ -44,6 +44,13 @@ function get_present_source(doc) {
 		};
 	}
 
+	if (doc.in_time || doc.out_time) {
+		return {
+			label: "Present",
+			css_class: "jtq-present-checkin",
+		};
+	}
+
 	return {
 		label: "Present",
 		css_class: "jtq-present-standard",
@@ -69,9 +76,9 @@ function ensure_jtq_attendance_indicator_styles() {
 			width: 8px;
 			height: 8px;
 			border-radius: 50%;
-			background: #B6E685;
+			background: var(--indicator-dot-green);
 		}
-		.jtq-attendance-source.jtq-present-standard::before {
+		.jtq-attendance-source.jtq-present-checkin::before {
 			background: #B6E685;
 		}
 		.jtq-attendance-source.jtq-present-bulk::before {

@@ -44,6 +44,8 @@ function get_attendance_add_fields(existing_fields) {
 			"attendance_date",
 			"attendance_request",
 			"custom_jtq_bulk_attendance",
+			"in_time",
+			"out_time",
 		]),
 	];
 }
@@ -63,9 +65,16 @@ function get_present_source(doc) {
 		};
 	}
 
+	if (doc.in_time || doc.out_time) {
+		return {
+			label: "Present",
+			color: "jtq-present-checkin",
+		};
+	}
+
 	return {
 		label: "Present",
-		color: "jtq-present-standard",
+		color: "green",
 	};
 }
 
@@ -77,7 +86,7 @@ function ensure_jtq_attendance_indicator_styles() {
 	const style = document.createElement("style");
 	style.id = "jtq-attendance-indicator-styles";
 	style.textContent = `
-		.indicator-pill.jtq-present-standard {
+		.indicator-pill.jtq-present-checkin {
 			background: #B6E685;
 			color: #1f2933;
 		}
