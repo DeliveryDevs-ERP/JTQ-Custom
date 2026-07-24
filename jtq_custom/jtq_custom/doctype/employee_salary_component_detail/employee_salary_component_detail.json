@@ -71,15 +71,19 @@
    "read_only": 1
   },
   {
+   "columns": 1,
    "fieldname": "condition",
    "fieldtype": "Code",
+   "in_list_view": 1,
    "label": "Condition",
    "options": "PythonExpression",
    "read_only": 1
   },
   {
+   "columns": 1,
    "fieldname": "formula",
    "fieldtype": "Code",
+   "in_list_view": 1,
    "label": "Formula",
    "options": "PythonExpression",
    "read_only": 1

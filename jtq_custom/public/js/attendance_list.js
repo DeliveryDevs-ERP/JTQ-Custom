@@ -65,7 +65,7 @@ function get_present_source(doc) {
 
 	return {
 		label: "Present",
-		color: "green",
+		color: "jtq-present-standard",
 	};
 }
 
@@ -77,6 +77,10 @@ function ensure_jtq_attendance_indicator_styles() {
 	const style = document.createElement("style");
 	style.id = "jtq-attendance-indicator-styles";
 	style.textContent = `
+		.indicator-pill.jtq-present-standard {
+			background: #B6E685;
+			color: #1f2933;
+		}
 		.indicator-pill.jtq-present-bulk {
 			background: #F5C527;
 			color: #1f2933;

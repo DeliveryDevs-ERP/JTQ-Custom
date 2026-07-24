@@ -69,13 +69,16 @@ function ensure_jtq_attendance_indicator_styles() {
 			width: 8px;
 			height: 8px;
 			border-radius: 50%;
-			background: var(--indicator-dot-green);
+			background: #B6E685;
+		}
+		.jtq-attendance-source.jtq-present-standard::before {
+			background: #B6E685;
 		}
 		.jtq-attendance-source.jtq-present-bulk::before {
-			background: #f6dc8a;
+			background: #F5C527;
 		}
 		.jtq-attendance-source.jtq-present-request::before {
-			background: #a3effe;
+			background: #64DDF5;
 		}
 	`;
 	document.head.appendChild(style);
