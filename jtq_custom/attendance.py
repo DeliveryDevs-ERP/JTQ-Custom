@@ -29,23 +29,24 @@ def calculate_overtime_and_attendance_details(doc, method=None):
 
 	doc.custom_shift_hours = flt(shift_details.shift_hours, 2)
 
-	if not (doc.get("in_time") and doc.get("out_time")):
-		return
+	in_time = get_datetime(doc.in_time) if doc.get("in_time") else None
+	out_time = get_datetime(doc.out_time) if doc.get("out_time") else None
+	working_hours = get_working_hours(doc)
+	if in_time and out_time:
+		working_hours = get_hour_difference(out_time, in_time)
+		doc.working_hours = working_hours
 
-	in_time = get_datetime(doc.in_time)
-	out_time = get_datetime(doc.out_time)
-	working_hours = get_hour_difference(out_time, in_time)
-	doc.working_hours = working_hours
+	if doc.get("late_entry") and in_time:
+		late_hours = get_hour_difference(in_time, shift_details.start_datetime)
+		if late_hours:
+			doc.custom_late_entry_hours = late_hours
+			doc.custom_late_entry_detail = format_duration(late_hours)
 
-	late_hours = get_hour_difference(in_time, shift_details.start_datetime)
-	if late_hours:
-		doc.custom_late_entry_hours = late_hours
-		doc.custom_late_entry_detail = format_duration(late_hours)
-
-	early_hours = get_hour_difference(shift_details.end_datetime, out_time)
-	if early_hours:
-		doc.custom_early_exit_hours = early_hours
-		doc.custom_early_exit_detail = format_duration(early_hours)
+	if doc.get("early_exit") and out_time:
+		early_hours = get_hour_difference(shift_details.end_datetime, out_time)
+		if early_hours:
+			doc.custom_early_exit_hours = early_hours
+			doc.custom_early_exit_detail = format_duration(early_hours)
 
 	overtime_hours = max(working_hours - flt(shift_details.shift_hours), 0)
 	if overtime_hours:
@@ -116,6 +117,7 @@ def update_attendance_times_from_request(doc, method=None):
 
 	for attendance_name in attendance_names:
 		attendance = frappe.get_doc("Attendance", attendance_name)
+		attendance.late_entry = 0
 		calculate_overtime_and_attendance_details(attendance)
 
 		if not (attendance.get("in_time") and attendance.get("out_time")):
@@ -170,6 +172,8 @@ def get_shift_details_for_attendance(doc):
 		as_dict=True,
 	)
 	if not shift_times:
+		return frappe._dict()
+	if not (shift_times.start_time and shift_times.end_time):
 		return frappe._dict()
 
 	anchor_date = getdate(doc.in_time) if doc.get("in_time") else getdate(doc.attendance_date)
@@ -252,6 +256,16 @@ def time_to_seconds(value):
 
 	parsed_time = normalize_time(value)
 	return parsed_time.hour * 3600 + parsed_time.minute * 60 + parsed_time.second
+
+
+def get_working_hours(doc):
+	if flt(doc.get("working_hours")):
+		return flt(doc.working_hours)
+
+	if doc.get("in_time") and doc.get("out_time"):
+		return get_hour_difference(doc.out_time, doc.in_time)
+
+	return 0
 
 
 def get_hour_difference(end_datetime, start_datetime):

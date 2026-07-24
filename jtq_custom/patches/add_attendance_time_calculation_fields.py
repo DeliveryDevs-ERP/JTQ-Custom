@@ -14,6 +14,7 @@ def get_custom_fields():
 				"label": "Shift Hours",
 				"precision": "2",
 				"read_only": 1,
+				"allow_on_submit": 1,
 				"insert_after": "working_hours",
 			},
 			{
@@ -21,6 +22,7 @@ def get_custom_fields():
 				"fieldtype": "Data",
 				"label": "Late Entry Detail",
 				"read_only": 1,
+				"allow_on_submit": 1,
 				"insert_after": "late_entry",
 			},
 			{
@@ -29,6 +31,7 @@ def get_custom_fields():
 				"label": "Late Entry Hours",
 				"precision": "2",
 				"read_only": 1,
+				"allow_on_submit": 1,
 				"insert_after": "custom_late_entry_detail",
 			},
 			{
@@ -36,6 +39,7 @@ def get_custom_fields():
 				"fieldtype": "Data",
 				"label": "Early Exit Detail",
 				"read_only": 1,
+				"allow_on_submit": 1,
 				"insert_after": "early_exit",
 			},
 			{
@@ -44,6 +48,7 @@ def get_custom_fields():
 				"label": "Early Exit Hours",
 				"precision": "2",
 				"read_only": 1,
+				"allow_on_submit": 1,
 				"insert_after": "custom_early_exit_detail",
 			},
 			{
@@ -51,6 +56,7 @@ def get_custom_fields():
 				"fieldtype": "Data",
 				"label": "Overtime Detail",
 				"read_only": 1,
+				"allow_on_submit": 1,
 				"insert_after": "custom_early_exit_hours",
 			},
 			{
@@ -59,6 +65,7 @@ def get_custom_fields():
 				"label": "Overtime Hours",
 				"precision": "2",
 				"read_only": 1,
+				"allow_on_submit": 1,
 				"insert_after": "custom_overtime_detail",
 			},
 		]
