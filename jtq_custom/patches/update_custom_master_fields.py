@@ -1,19 +1,26 @@
 import frappe
+from frappe.model.rename_doc import rename_doc
 
 
 MASTER_DOCTYPES = {
 	"City": {
 		"app": "jtq_custom",
 		"doctype": "city",
+		"autoname_prefix": "City",
+		"title_field": "title",
 	},
 	"Province": {
 		"app": "jtq_custom",
 		"doctype": "province",
+		"autoname_prefix": "Province",
+		"title_field": "title",
 	},
 	"Region": {
 		"app": "donation_management",
 		"doctype": "region",
+		"autoname_prefix": "Region",
 		"name_field": "region_name",
+		"title_field": "region_name",
 	},
 	"Madrasa": {
 		"app": "donation_management",
@@ -29,7 +36,61 @@ def execute():
 			continue
 
 		frappe.reload_doc(details["app"], "doctype", details["doctype"])
+		normalize_doctype_display(doctype, details)
+		rename_master_records(doctype, details.get("autoname_prefix"))
 		backfill_master_records(doctype, details.get("name_field"))
+
+
+def normalize_doctype_display(doctype, details):
+	values = {
+		"show_title_field_in_link": 1,
+	}
+
+	if details.get("title_field"):
+		values["title_field"] = details["title_field"]
+		values["search_fields"] = details["title_field"]
+
+	if details.get("autoname_prefix"):
+		values["autoname"] = f"{details['autoname_prefix']}-.#"
+		values["naming_rule"] = "Expression"
+
+	frappe.db.set_value("DocType", doctype, values, update_modified=False)
+
+
+def rename_master_records(doctype, prefix):
+	if not prefix:
+		return
+
+	records = frappe.get_all(doctype, fields=["name"], order_by="creation asc, name asc")
+	used_names = {record.name for record in records if is_normalized_name(record.name, prefix)}
+	counter = 1
+
+	for record in records:
+		if is_normalized_name(record.name, prefix):
+			continue
+
+		new_name, counter = get_next_master_name(doctype, prefix, used_names, counter)
+		rename_doc(doctype, record.name, new_name, force=True, ignore_permissions=True)
+		used_names.add(new_name)
+
+
+def is_normalized_name(name, prefix):
+	if not name.startswith(f"{prefix}-"):
+		return False
+
+	number_part = name.replace(f"{prefix}-", "", 1)
+	return number_part.isdigit() and str(int(number_part)) == number_part
+
+
+def get_next_master_name(doctype, prefix, used_names, counter):
+	while True:
+		new_name = f"{prefix}-{counter}"
+		counter += 1
+		if new_name in used_names:
+			continue
+		if frappe.db.exists(doctype, new_name):
+			continue
+		return new_name, counter
 
 
 def backfill_master_records(doctype, name_field):

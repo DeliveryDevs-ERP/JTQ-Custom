@@ -2,7 +2,7 @@
  "actions": [],
  "allow_import": 1,
  "allow_rename": 1,
- "autoname": "Name-.####",
+ "autoname": "City-.#",
  "creation": "2026-06-22 00:00:00",
  "custom": 1,
  "doctype": "DocType",

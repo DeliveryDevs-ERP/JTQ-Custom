@@ -1,7 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "Name-.####",
+ "autoname": "Province-.#",
  "creation": "2026-06-22 15:01:06.936234",
  "custom": 1,
  "doctype": "DocType",
