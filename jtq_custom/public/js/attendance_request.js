@@ -1,4 +1,13 @@
 frappe.ui.form.on("Attendance Request", {
+	setup(frm) {
+		frm.set_query("custom_attendance_request_approver", () => {
+			const filters = { status: "Active" };
+			if (frm.doc.company) {
+				filters.company = frm.doc.company;
+			}
+			return { filters };
+		});
+	},
 	validate(frm) {
 		validate_future_dates(frm);
 		toggle_time_fields(frm);

@@ -17,6 +17,13 @@ def execute():
 					"label": "Employee Out Time",
 					"insert_after": "custom_in_time",
 				},
+				{
+					"fieldname": "custom_attendance_request_approver",
+					"fieldtype": "Link",
+					"label": "Attendance Request Approver",
+					"options": "Employee",
+					"insert_after": "custom_out_time",
+				},
 			]
 		},
 		update=True,
