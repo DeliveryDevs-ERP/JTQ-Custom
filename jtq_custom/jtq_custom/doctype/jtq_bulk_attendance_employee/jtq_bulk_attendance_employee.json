@@ -8,6 +8,8 @@
  "field_order": [
   "employee",
   "employee_name",
+  "region",
+  "madrasa",
   "shift",
   "current_attendance_status",
   "available_leave_summary",
@@ -30,6 +32,22 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Employee Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "region",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Region",
+   "options": "Region",
+   "read_only": 1
+  },
+  {
+   "fieldname": "madrasa",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Madrasa",
+   "options": "Madrasa",
    "read_only": 1
   },
   {

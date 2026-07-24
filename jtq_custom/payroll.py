@@ -1,6 +1,7 @@
 import frappe
 from frappe import _
-from frappe.utils import flt
+from frappe.model.naming import make_autoname
+from frappe.utils import flt, getdate
 
 
 def sync_additional_salary_controls(doc, method=None):
@@ -151,3 +152,221 @@ def set_salary_detail_from_component(row, component):
 	row.deduct_full_tax_on_selected_payroll_date = component.deduct_full_tax_on_selected_payroll_date
 	row.custom_jtq_auto_populated = 1
 	row.custom_jtq_amount_changed = 0
+
+
+@frappe.whitelist()
+def get_employee_salary_structure_components(salary_structure):
+	if not salary_structure:
+		return {}
+
+	salary_structure_doc = frappe.get_doc("Salary Structure", salary_structure)
+	validate_salary_structure_for_employee_assignment(salary_structure_doc)
+
+	return {
+		"salary_structure": salary_structure_doc.name,
+		"company": salary_structure_doc.company,
+		"currency": salary_structure_doc.currency,
+		"earnings": get_employee_component_rows(salary_structure_doc.get("earnings")),
+		"deductions": get_employee_component_rows(salary_structure_doc.get("deductions")),
+	}
+
+
+def validate_salary_structure_for_employee_assignment(salary_structure_doc):
+	if salary_structure_doc.docstatus != 1:
+		frappe.throw(
+			_("Salary Structure {0} must be submitted before assignment.").format(
+				frappe.bold(salary_structure_doc.name)
+			)
+		)
+	if salary_structure_doc.get("is_active") == "No":
+		frappe.throw(
+			_("Salary Structure {0} is inactive.").format(frappe.bold(salary_structure_doc.name))
+		)
+
+
+def get_employee_component_rows(rows):
+	return [get_employee_component_row(row) for row in rows]
+
+
+def get_employee_component_row(row):
+	return {
+		"salary_component": row.salary_component,
+		"abbr": row.abbr,
+		"amount": flt(row.amount),
+		"depends_on_payment_days": row.depends_on_payment_days,
+		"is_tax_applicable": row.is_tax_applicable,
+		"condition": row.condition,
+		"formula": row.formula,
+		"amount_based_on_formula": row.amount_based_on_formula,
+		"statistical_component": row.statistical_component,
+		"is_flexible_benefit": row.is_flexible_benefit,
+		"variable_based_on_taxable_salary": row.variable_based_on_taxable_salary,
+		"exempted_from_income_tax": row.exempted_from_income_tax,
+		"do_not_include_in_total": row.do_not_include_in_total,
+		"do_not_include_in_accounts": row.do_not_include_in_accounts,
+		"deduct_full_tax_on_selected_payroll_date": row.deduct_full_tax_on_selected_payroll_date,
+	}
+
+
+@frappe.whitelist()
+def create_salary_assignment_from_employee(employee):
+	if not employee:
+		frappe.throw(_("Employee is required."))
+
+	employee_doc = frappe.get_doc("Employee", employee)
+	salary_structure = employee_doc.get("custom_salary_structure")
+	from_date = employee_doc.get("custom_salary_assignment_from_date")
+
+	if not salary_structure:
+		frappe.throw(_("Please select Salary Structure in the Salary tab."))
+	if not from_date:
+		frappe.throw(_("Please select Assignment From Date in the Salary tab."))
+
+	template = frappe.get_doc("Salary Structure", salary_structure)
+	validate_salary_structure_for_employee_assignment(template)
+
+	if employee_doc.company != template.company:
+		frappe.throw(
+			_("Selected Salary Structure belongs to {0}, but Employee belongs to {1}.").format(
+				frappe.bold(template.company), frappe.bold(employee_doc.company)
+			)
+		)
+
+	validate_employee_salary_components(employee_doc)
+	cancel_latest_salary_structure_assignment(employee_doc.name)
+
+	employee_salary_structure = create_employee_salary_structure(employee_doc, template)
+	assignment = create_employee_salary_structure_assignment(
+		employee_doc,
+		employee_salary_structure,
+		getdate(from_date),
+	)
+
+	employee_doc.db_set(
+		"custom_current_salary_structure_assignment",
+		assignment.name,
+		update_modified=False,
+	)
+
+	frappe.msgprint(
+		_("Salary Structure Assignment {0} created for Employee {1}.").format(
+			frappe.bold(assignment.name), frappe.bold(employee_doc.name)
+		),
+		indicator="green",
+	)
+
+	return {
+		"salary_structure": employee_salary_structure.name,
+		"salary_structure_assignment": assignment.name,
+	}
+
+
+def validate_employee_salary_components(employee_doc):
+	if not employee_doc.get("custom_employee_earnings"):
+		frappe.throw(_("Please fetch or add Earning components before creating Salary Assignment."))
+
+	for table_field, label in (
+		("custom_employee_earnings", _("Earnings")),
+		("custom_employee_deductions", _("Deductions")),
+	):
+		seen_components = set()
+		for row in employee_doc.get(table_field):
+			if not row.salary_component:
+				frappe.throw(_("{0} row {1}: Salary Component is required.").format(label, row.idx))
+			if row.salary_component in seen_components:
+				frappe.throw(
+					_("{0} row {1}: Duplicate Salary Component {2}.").format(
+						label, row.idx, frappe.bold(row.salary_component)
+					)
+				)
+			seen_components.add(row.salary_component)
+			if flt(row.amount) < 0:
+				frappe.throw(_("{0} row {1}: Amount cannot be negative.").format(label, row.idx))
+
+
+def cancel_latest_salary_structure_assignment(employee):
+	latest_assignment = frappe.db.get_value(
+		"Salary Structure Assignment",
+		{
+			"employee": employee,
+			"docstatus": 1,
+		},
+		"name",
+		order_by="from_date desc, creation desc",
+	)
+	if not latest_assignment:
+		return
+
+	assignment = frappe.get_doc("Salary Structure Assignment", latest_assignment)
+	assignment.flags.ignore_permissions = True
+	assignment.cancel()
+
+
+def create_employee_salary_structure(employee_doc, template):
+	new_structure = frappe.new_doc("Salary Structure")
+	new_structure.name = make_autoname(f"{employee_doc.name}-SS-.#####")
+	new_structure.company = template.company
+	new_structure.currency = template.currency
+	new_structure.is_active = "Yes"
+	new_structure.is_default = "No"
+	new_structure.salary_slip_based_on_timesheet = template.get("salary_slip_based_on_timesheet")
+	new_structure.payroll_frequency = template.get("payroll_frequency")
+	new_structure.salary_component = template.get("salary_component")
+	new_structure.hour_rate = template.get("hour_rate")
+	new_structure.leave_encashment_amount_per_day = template.get("leave_encashment_amount_per_day")
+	new_structure.max_benefits = template.get("max_benefits")
+	new_structure.mode_of_payment = template.get("mode_of_payment")
+	new_structure.payment_account = template.get("payment_account")
+
+	for source_row in employee_doc.get("custom_employee_earnings"):
+		append_salary_structure_component(new_structure, "earnings", source_row)
+	for source_row in employee_doc.get("custom_employee_deductions"):
+		append_salary_structure_component(new_structure, "deductions", source_row)
+
+	new_structure.flags.ignore_permissions = True
+	new_structure.insert()
+	new_structure.submit()
+	return new_structure
+
+
+def append_salary_structure_component(salary_structure, table_field, source_row):
+	row = salary_structure.append(table_field, {})
+	row.salary_component = source_row.salary_component
+	row.abbr = source_row.abbr
+	row.amount = flt(source_row.amount)
+	row.default_amount = flt(source_row.amount)
+	row.additional_amount = 0
+	row.condition = ""
+	row.formula = ""
+	row.amount_based_on_formula = 0
+	row.depends_on_payment_days = source_row.depends_on_payment_days
+	row.is_tax_applicable = source_row.is_tax_applicable
+	row.is_flexible_benefit = source_row.is_flexible_benefit
+	row.variable_based_on_taxable_salary = source_row.variable_based_on_taxable_salary
+	row.statistical_component = source_row.statistical_component
+	row.exempted_from_income_tax = source_row.exempted_from_income_tax
+	row.do_not_include_in_total = source_row.do_not_include_in_total
+	row.do_not_include_in_accounts = source_row.do_not_include_in_accounts
+	row.deduct_full_tax_on_selected_payroll_date = source_row.deduct_full_tax_on_selected_payroll_date
+	row.custom_jtq_auto_populated = 1
+	row.custom_jtq_amount_changed = 1
+
+
+def create_employee_salary_structure_assignment(employee_doc, salary_structure, from_date):
+	assignment = frappe.new_doc("Salary Structure Assignment")
+	assignment.employee = employee_doc.name
+	assignment.salary_structure = salary_structure.name
+	assignment.company = employee_doc.company
+	assignment.currency = salary_structure.currency
+	assignment.from_date = from_date
+	assignment.base = get_component_total(salary_structure.get("earnings"))
+	assignment.variable = 0
+
+	assignment.flags.ignore_permissions = True
+	assignment.insert()
+	assignment.submit()
+	return assignment
+
+
+def get_component_total(rows):
+	return sum(flt(row.amount) for row in rows if not row.do_not_include_in_total)

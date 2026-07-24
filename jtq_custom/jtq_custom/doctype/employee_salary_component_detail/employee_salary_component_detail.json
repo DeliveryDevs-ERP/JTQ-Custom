@@ -1,0 +1,157 @@
+{
+ "actions": [],
+ "creation": "2026-07-24 00:00:00",
+ "custom": 1,
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "salary_component",
+  "abbr",
+  "column_break_3",
+  "amount",
+  "depends_on_payment_days",
+  "is_tax_applicable",
+  "condition",
+  "formula",
+  "amount_based_on_formula",
+  "statistical_component",
+  "is_flexible_benefit",
+  "variable_based_on_taxable_salary",
+  "exempted_from_income_tax",
+  "do_not_include_in_total",
+  "do_not_include_in_accounts",
+  "deduct_full_tax_on_selected_payroll_date"
+ ],
+ "fields": [
+  {
+   "columns": 2,
+   "fieldname": "salary_component",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Component",
+   "options": "Salary Component",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "abbr",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Abbr",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "columns": 2,
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Amount",
+   "options": "currency"
+  },
+  {
+   "columns": 1,
+   "fieldname": "depends_on_payment_days",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Depends on Payment Days",
+   "read_only": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "is_tax_applicable",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Tax Applicable",
+   "read_only": 1
+  },
+  {
+   "fieldname": "condition",
+   "fieldtype": "Code",
+   "label": "Condition",
+   "options": "PythonExpression",
+   "read_only": 1
+  },
+  {
+   "fieldname": "formula",
+   "fieldtype": "Code",
+   "label": "Formula",
+   "options": "PythonExpression",
+   "read_only": 1
+  },
+  {
+   "fieldname": "amount_based_on_formula",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Amount Based on Formula",
+   "read_only": 1
+  },
+  {
+   "fieldname": "statistical_component",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Statistical Component",
+   "read_only": 1
+  },
+  {
+   "fieldname": "is_flexible_benefit",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Is Flexible Benefit",
+   "read_only": 1
+  },
+  {
+   "fieldname": "variable_based_on_taxable_salary",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Variable Based On Taxable Salary",
+   "read_only": 1
+  },
+  {
+   "fieldname": "exempted_from_income_tax",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Exempted From Income Tax",
+   "read_only": 1
+  },
+  {
+   "fieldname": "do_not_include_in_total",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Do Not Include In Total",
+   "read_only": 1
+  },
+  {
+   "fieldname": "do_not_include_in_accounts",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Do Not Include In Accounts",
+   "read_only": 1
+  },
+  {
+   "fieldname": "deduct_full_tax_on_selected_payroll_date",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Deduct Full Tax On Selected Payroll Date",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-07-24 00:00:00",
+ "modified_by": "Administrator",
+ "module": "JTQ Custom",
+ "name": "Employee Salary Component Detail",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

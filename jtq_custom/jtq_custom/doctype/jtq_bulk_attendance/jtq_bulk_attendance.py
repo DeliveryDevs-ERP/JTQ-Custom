@@ -45,6 +45,8 @@ class JTQBulkAttendance(Document):
 				{
 					"employee": employee.name,
 					"employee_name": employee.employee_name,
+					"region": employee.custom_region,
+					"madrasa": employee.custom_madrasa,
 					"shift": get_employee_shift(employee.name, self.from_date, self.to_date, self.shift),
 					"current_attendance_status": get_attendance_status_summary(
 						employee.name,
@@ -152,7 +154,7 @@ def get_matching_employees(doc):
 	employees = frappe.get_all(
 		"Employee",
 		filters=filters,
-		fields=["name", "employee_name", "date_of_joining"],
+		fields=["name", "employee_name", "date_of_joining", "custom_region", "custom_madrasa"],
 		order_by="employee_name",
 	)
 	employees = filter_employees_by_joining_date(employees, doc.to_date)

@@ -26,6 +26,31 @@ frappe.ui.form.on("JTQ Bulk Attendance", {
 	employee_grade: refetch_on_filter_change,
 });
 
+frappe.ui.form.on("JTQ Bulk Attendance Employee", {
+	employee(frm, cdt, cdn) {
+		const row = locals[cdt][cdn];
+		if (!row.employee) {
+			frappe.model.set_value(cdt, cdn, {
+				employee_name: "",
+				region: "",
+				madrasa: "",
+			});
+			return;
+		}
+
+		frappe.db
+			.get_value("Employee", row.employee, ["employee_name", "custom_region", "custom_madrasa"])
+			.then((response) => {
+				const employee = response.message || {};
+				frappe.model.set_value(cdt, cdn, {
+					employee_name: employee.employee_name || "",
+					region: employee.custom_region || "",
+					madrasa: employee.custom_madrasa || "",
+				});
+			});
+	},
+});
+
 function setup_employee_grid_query(frm) {
 	const employee_field = frm.fields_dict.employees?.grid?.get_field("employee");
 	if (!employee_field) {

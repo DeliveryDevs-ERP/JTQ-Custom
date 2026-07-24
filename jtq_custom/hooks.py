@@ -8,6 +8,7 @@ app_license = "mit"
 doctype_js = {
 	"Attendance": "public/js/attendance.js",
 	"Attendance Request": "public/js/attendance_request.js",
+	"Employee": "public/js/employee.js",
 	"JTQ Bulk Attendance": "public/js/jtq_bulk_attendance.js",
 	"Payroll Entry": "public/js/payroll_entry.js",
 	"Salary Structure": "public/js/salary_structure.js",
@@ -68,4 +69,5 @@ after_migrate = [
 	"jtq_custom.patches.add_attendance_request_time_fields.execute",
 	"jtq_custom.patches.update_custom_master_fields.execute",
 	"jtq_custom.patches.add_compensatory_leave_working_hours_field.execute",
+	"jtq_custom.patches.add_employee_salary_structure_assignment_fields.execute",
 ]
