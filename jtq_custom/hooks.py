@@ -5,6 +5,22 @@ app_description = "JTQ Customizations for ERPNext and HRMS"
 app_email = "admin@example.com"
 app_license = "mit"
 
+fixtures = [
+	{
+		"dt": "Print Format",
+		"filters": [
+			[
+				"name",
+				"in",
+				[
+					"Appointment letter for Back Office",
+					"Appointment Letter For Field Staff",
+				],
+			]
+		],
+	},
+]
+
 doctype_js = {
 	"Attendance": "public/js/attendance.js",
 	"Attendance Request": "public/js/attendance_request.js",
