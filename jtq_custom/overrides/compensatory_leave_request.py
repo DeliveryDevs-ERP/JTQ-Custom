@@ -30,10 +30,13 @@ class JTQCompensatoryLeaveRequest(CompensatoryLeaveRequest):
 
 	def on_cancel(self):
 		super().on_cancel()
+		frappe.clear_messages()
 		cancel_linked_compensatory_leave_allocation(self)
+		frappe.clear_messages()
 
 	def on_trash(self):
 		delete_linked_compensatory_leave_allocation(self)
+		frappe.clear_messages()
 
 
 def cancel_linked_compensatory_leave_allocation(doc):
@@ -54,6 +57,7 @@ def cancel_linked_compensatory_leave_allocation(doc):
 
 	allocation.flags.ignore_permissions = True
 	allocation.cancel()
+	frappe.clear_messages()
 
 
 def delete_linked_compensatory_leave_allocation(doc):
@@ -74,10 +78,12 @@ def delete_linked_compensatory_leave_allocation(doc):
 		allocation.flags.ignore_permissions = True
 		allocation.cancel()
 		allocation.reload()
+		frappe.clear_messages()
 
 	if allocation.docstatus == 2:
 		allocation.flags.ignore_permissions = True
 		allocation.delete()
+		frappe.clear_messages()
 
 
 def get_linked_compensatory_leave_allocation(doc):
@@ -130,7 +136,6 @@ def is_allocation_created_by_request(leave_allocation, compensatory_leave_reques
 		)
 		== compensatory_leave_request
 	)
-
 
 
 def has_linked_leave_applications(leave_allocation):

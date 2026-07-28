@@ -21,7 +21,7 @@ def execute():
 					"fieldname": "custom_attendance_request_approver",
 					"fieldtype": "Link",
 					"label": "Attendance Request Approver",
-					"options": "Employee",
+					"options": "User",
 					"insert_after": "custom_out_time",
 				},
 			]

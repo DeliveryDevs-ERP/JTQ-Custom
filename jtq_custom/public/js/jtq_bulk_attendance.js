@@ -155,7 +155,7 @@ function fetch_employees(frm, show_message) {
 		.then(async (response) => {
 			const result = response.message || {};
 			if (show_message) {
-				frappe.msgprint(__("{0} employees loaded.", [result.total_employees || 0]));
+				frappe.msgprint(result.message || __("{0} employees loaded.", [result.total_employees || 0]));
 			}
 			await frm.reload_doc();
 			frm.refresh_field("employees");

@@ -1,7 +1,10 @@
 import frappe
 from frappe import _
 from frappe.model.naming import make_autoname
-from frappe.utils import flt, getdate
+from frappe.utils import add_months, cstr, flt, getdate
+
+
+MEDICAL_ALLOWANCE_COMPONENT = "Medical Allowance"
 
 
 def sync_additional_salary_controls(doc, method=None):
@@ -155,18 +158,26 @@ def set_salary_detail_from_component(row, component):
 
 
 @frappe.whitelist()
-def get_employee_salary_structure_components(salary_structure):
+def get_employee_salary_structure_components(
+	salary_structure,
+	employee=None,
+	assignment_from_date=None,
+	date_of_joining=None,
+):
 	if not salary_structure:
 		return {}
 
 	salary_structure_doc = frappe.get_doc("Salary Structure", salary_structure)
 	validate_salary_structure_for_employee_assignment(salary_structure_doc)
+	earnings = get_employee_component_rows(salary_structure_doc.get("earnings"))
+	if not is_medical_allowance_eligible(employee, assignment_from_date, date_of_joining):
+		earnings = remove_medical_allowance_rows(earnings)
 
 	return {
 		"salary_structure": salary_structure_doc.name,
 		"company": salary_structure_doc.company,
 		"currency": salary_structure_doc.currency,
-		"earnings": get_employee_component_rows(salary_structure_doc.get("earnings")),
+		"earnings": earnings,
 		"deductions": get_employee_component_rows(salary_structure_doc.get("deductions")),
 	}
 
@@ -208,6 +219,29 @@ def get_employee_component_row(row):
 	}
 
 
+def is_medical_allowance_eligible(employee=None, assignment_from_date=None, date_of_joining=None):
+	if employee and not date_of_joining:
+		date_of_joining = frappe.db.get_value("Employee", employee, "date_of_joining")
+
+	if not (date_of_joining and assignment_from_date):
+		return False
+
+	eligibility_date = add_months(getdate(date_of_joining), 6)
+	return getdate(assignment_from_date) >= eligibility_date
+
+
+def remove_medical_allowance_rows(rows):
+	return [
+		row
+		for row in rows
+		if not is_medical_allowance_component(row.get("salary_component"))
+	]
+
+
+def is_medical_allowance_component(salary_component):
+	return cstr(salary_component).strip().lower() == MEDICAL_ALLOWANCE_COMPONENT.lower()
+
+
 @frappe.whitelist()
 def create_salary_assignment_from_employee(employee):
 	if not employee:
@@ -235,7 +269,7 @@ def create_salary_assignment_from_employee(employee):
 	validate_employee_salary_components(employee_doc)
 	cancel_latest_salary_structure_assignment(employee_doc.name)
 
-	employee_salary_structure = create_employee_salary_structure(employee_doc, template)
+	employee_salary_structure = create_employee_salary_structure(employee_doc, template, getdate(from_date))
 	assignment = create_employee_salary_structure_assignment(
 		employee_doc,
 		employee_salary_structure,
@@ -302,7 +336,7 @@ def cancel_latest_salary_structure_assignment(employee):
 	assignment.cancel()
 
 
-def create_employee_salary_structure(employee_doc, template):
+def create_employee_salary_structure(employee_doc, template, assignment_from_date):
 	new_structure = frappe.new_doc("Salary Structure")
 	new_structure.name = make_autoname(f"{employee_doc.name}-SS-.#####")
 	new_structure.company = template.company
@@ -319,6 +353,12 @@ def create_employee_salary_structure(employee_doc, template):
 	new_structure.payment_account = template.get("payment_account")
 
 	for source_row in employee_doc.get("custom_employee_earnings"):
+		if is_medical_allowance_component(source_row.salary_component) and not is_medical_allowance_eligible(
+			employee_doc.name,
+			assignment_from_date,
+			employee_doc.date_of_joining,
+		):
+			continue
 		append_salary_structure_component(new_structure, "earnings", source_row)
 	for source_row in employee_doc.get("custom_employee_deductions"):
 		append_salary_structure_component(new_structure, "deductions", source_row)
@@ -336,9 +376,9 @@ def append_salary_structure_component(salary_structure, table_field, source_row)
 	row.amount = flt(source_row.amount)
 	row.default_amount = flt(source_row.amount)
 	row.additional_amount = 0
-	row.condition = ""
-	row.formula = ""
-	row.amount_based_on_formula = 0
+	row.condition = source_row.condition or ""
+	row.formula = source_row.formula or ""
+	row.amount_based_on_formula = source_row.amount_based_on_formula
 	row.depends_on_payment_days = source_row.depends_on_payment_days
 	row.is_tax_applicable = source_row.is_tax_applicable
 	row.is_flexible_benefit = source_row.is_flexible_benefit

@@ -23,6 +23,10 @@ frappe.ui.form.on("Employee", {
 		}
 	},
 
+	date_of_joining(frm) {
+		refetch_salary_components_if_ready(frm);
+	},
+
 	custom_salary_structure(frm) {
 		if (!frm.doc.custom_salary_structure) {
 			clear_employee_salary_components(frm);
@@ -37,6 +41,7 @@ frappe.ui.form.on("Employee", {
 	},
 
 	custom_salary_assignment_from_date(frm) {
+		refetch_salary_components_if_ready(frm);
 		toggle_salary_assignment_button(frm);
 	},
 });
@@ -62,6 +67,9 @@ function fetch_salary_structure_components(frm) {
 		method: "jtq_custom.payroll.get_employee_salary_structure_components",
 		args: {
 			salary_structure: frm.doc.custom_salary_structure,
+			employee: frm.doc.name,
+			assignment_from_date: frm.doc.custom_salary_assignment_from_date,
+			date_of_joining: frm.doc.date_of_joining,
 		},
 		callback(response) {
 			const data = response.message || {};
@@ -72,6 +80,12 @@ function fetch_salary_structure_components(frm) {
 			toggle_salary_assignment_button(frm);
 		},
 	});
+}
+
+function refetch_salary_components_if_ready(frm) {
+	if (frm.doc.custom_salary_structure && frm.doc.custom_salary_assignment_from_date) {
+		fetch_salary_structure_components(frm);
+	}
 }
 
 function fill_component_table(frm, table_field, rows) {

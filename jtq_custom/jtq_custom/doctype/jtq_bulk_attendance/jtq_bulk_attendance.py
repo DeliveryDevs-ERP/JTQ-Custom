@@ -39,7 +39,9 @@ class JTQBulkAttendance(Document):
 		self.validate_dates()
 		self.validate_company()
 		self.set("employees", [])
-		for employee in get_matching_employees(self):
+		fetch_result = get_matching_employees(self, with_summary=True)
+		self._employee_fetch_summary = fetch_result.summary
+		for employee in fetch_result.employees:
 			self.append(
 				"employees",
 				{
@@ -125,7 +127,7 @@ class JTQBulkAttendance(Document):
 		return processed, failed, remarks
 
 
-def get_matching_employees(doc):
+def get_matching_employees(doc, with_summary=False):
 	filters = {
 		"status": "Active",
 	}
@@ -158,7 +160,11 @@ def get_matching_employees(doc):
 		order_by="employee_name",
 	)
 	employees = filter_employees_by_joining_date(employees, doc.to_date)
-	return filter_employees_by_manual_attendance_shift(employees, doc)
+	fetch_result = filter_employees_by_manual_attendance_shift(employees, doc)
+	fetch_result.summary["matched_filters"] = len(employees)
+	if with_summary:
+		return fetch_result
+	return fetch_result.employees
 
 
 def filter_employees_by_joining_date(employees, to_date):
@@ -209,15 +215,27 @@ def get_employee_shift(employee, from_date, to_date, selected_shift=None):
 
 def filter_employees_by_manual_attendance_shift(employees, doc):
 	filtered_employees = []
+	summary = {
+		"matched_filters": len(employees),
+		"without_active_shift": 0,
+		"auto_attendance_enabled": 0,
+		"qualified": 0,
+	}
 	for employee in employees:
 		shift = get_employee_shift(employee.name, doc.from_date, doc.to_date, doc.shift)
 		if not shift:
+			summary["without_active_shift"] += 1
 			continue
 		if doc.shift and shift != doc.shift:
+			summary["without_active_shift"] += 1
 			continue
-		if is_shift_auto_attendance_disabled(shift):
-			filtered_employees.append(employee)
-	return filtered_employees
+		if not is_shift_auto_attendance_disabled(shift):
+			summary["auto_attendance_enabled"] += 1
+			continue
+		filtered_employees.append(employee)
+
+	summary["qualified"] = len(filtered_employees)
+	return frappe._dict({"employees": filtered_employees, "summary": summary})
 
 
 def get_active_shift_assignment(employee, from_date, to_date, selected_shift=None):
@@ -614,11 +632,43 @@ def get_employees(docname=None, doc=None):
 	if doc.docstatus != 0:
 		frappe.throw(frappe._("Employees can only be fetched for Draft Bulk Attendance records."))
 	doc.load_employees()
+	fetch_summary = getattr(doc, "_employee_fetch_summary", {})
 	doc.save(ignore_permissions=True)
 	return {
 		"total_employees": doc.total_employees,
 		"total_dates": doc.total_dates,
+		"message": get_employee_fetch_message(fetch_summary),
+		"summary": fetch_summary,
 	}
+
+
+def get_employee_fetch_message(summary):
+	if not summary:
+		return ""
+
+	if summary.get("qualified"):
+		return frappe._("{0} employees loaded.").format(summary.get("qualified"))
+
+	if not summary.get("matched_filters"):
+		return frappe._("No active employees matched the selected filters.")
+
+	if summary.get("without_active_shift") and not summary.get("auto_attendance_enabled"):
+		return frappe._(
+			"No employees were loaded because the matched employees do not have an active Shift Assignment for the selected date range."
+		)
+
+	if summary.get("auto_attendance_enabled") and not summary.get("without_active_shift"):
+		return frappe._(
+			"No employees were loaded because the matched employees have Auto Attendance enabled on their assigned Shift Type."
+		)
+
+	return frappe._(
+		"No employees were loaded. {0} matched the filters, {1} had no active manual-attendance shift, and {2} had Auto Attendance enabled."
+	).format(
+		summary.get("matched_filters", 0),
+		summary.get("without_active_shift", 0),
+		summary.get("auto_attendance_enabled", 0),
+	)
 
 
 def get_bulk_attendance_doc(docname=None, doc=None):

@@ -91,56 +91,64 @@
   {
    "fieldname": "amount_based_on_formula",
    "fieldtype": "Check",
-   "hidden": 1,
+   "columns": 1,
+   "in_list_view": 1,
    "label": "Amount Based on Formula",
    "read_only": 1
   },
   {
    "fieldname": "statistical_component",
    "fieldtype": "Check",
-   "hidden": 1,
+   "columns": 1,
+   "in_list_view": 1,
    "label": "Statistical Component",
    "read_only": 1
   },
   {
    "fieldname": "is_flexible_benefit",
    "fieldtype": "Check",
-   "hidden": 1,
+   "columns": 1,
+   "in_list_view": 1,
    "label": "Is Flexible Benefit",
    "read_only": 1
   },
   {
    "fieldname": "variable_based_on_taxable_salary",
    "fieldtype": "Check",
-   "hidden": 1,
+   "columns": 1,
+   "in_list_view": 1,
    "label": "Variable Based On Taxable Salary",
    "read_only": 1
   },
   {
    "fieldname": "exempted_from_income_tax",
    "fieldtype": "Check",
-   "hidden": 1,
+   "columns": 1,
+   "in_list_view": 1,
    "label": "Exempted From Income Tax",
    "read_only": 1
   },
   {
    "fieldname": "do_not_include_in_total",
    "fieldtype": "Check",
-   "hidden": 1,
+   "columns": 1,
+   "in_list_view": 1,
    "label": "Do Not Include In Total",
    "read_only": 1
   },
   {
    "fieldname": "do_not_include_in_accounts",
    "fieldtype": "Check",
-   "hidden": 1,
+   "columns": 1,
+   "in_list_view": 1,
    "label": "Do Not Include In Accounts",
    "read_only": 1
   },
   {
    "fieldname": "deduct_full_tax_on_selected_payroll_date",
    "fieldtype": "Check",
-   "hidden": 1,
+   "columns": 1,
+   "in_list_view": 1,
    "label": "Deduct Full Tax On Selected Payroll Date",
    "read_only": 1
   }

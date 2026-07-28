@@ -1,12 +1,12 @@
 frappe.ui.form.on("Attendance Request", {
 	setup(frm) {
 		frm.set_query("custom_attendance_request_approver", () => {
-			const filters = { status: "Active" };
-			if (frm.doc.company) {
-				filters.company = frm.doc.company;
-			}
+			const filters = { enabled: 1 };
 			return { filters };
 		});
+	},
+	employee(frm) {
+		fetch_shift_request_approver(frm, true);
 	},
 	validate(frm) {
 		validate_future_dates(frm);
@@ -22,6 +22,7 @@ frappe.ui.form.on("Attendance Request", {
 	},
 	refresh(frm) {
 		toggle_time_fields(frm);
+		fetch_shift_request_approver(frm, false);
 	},
 });
 
@@ -49,4 +50,27 @@ function toggle_time_fields(frm) {
 	frm.toggle_display("custom_out_time", show);
 	frm.toggle_reqd("custom_in_time", show);
 	frm.toggle_reqd("custom_out_time", show);
+}
+
+function fetch_shift_request_approver(frm, overwrite) {
+	if (!frm.doc.employee) {
+		if (overwrite) {
+			frm.set_value("custom_attendance_request_approver", "");
+		}
+		return;
+	}
+
+	if (!overwrite && frm.doc.custom_attendance_request_approver) {
+		return;
+	}
+
+	frappe.db
+		.get_value("Employee", frm.doc.employee, "shift_request_approver")
+		.then((response) => {
+			const employee = response.message || {};
+			frm.set_value(
+				"custom_attendance_request_approver",
+				employee.shift_request_approver || ""
+			);
+		});
 }
