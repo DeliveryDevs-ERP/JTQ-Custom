@@ -96,6 +96,9 @@ function fill_component_table(frm, table_field, rows) {
 			salary_component: source.salary_component,
 			abbr: source.abbr,
 			amount: source.amount || 0,
+			year_to_date: source.year_to_date || 0,
+			additional_salary: source.additional_salary,
+			is_recurring_additional_salary: source.is_recurring_additional_salary,
 			depends_on_payment_days: source.depends_on_payment_days,
 			is_tax_applicable: source.is_tax_applicable,
 			condition: source.condition,
@@ -108,6 +111,10 @@ function fill_component_table(frm, table_field, rows) {
 			do_not_include_in_total: source.do_not_include_in_total,
 			do_not_include_in_accounts: source.do_not_include_in_accounts,
 			deduct_full_tax_on_selected_payroll_date: source.deduct_full_tax_on_selected_payroll_date,
+			default_amount: source.default_amount || 0,
+			additional_amount: source.additional_amount || 0,
+			tax_on_flexible_benefit: source.tax_on_flexible_benefit || 0,
+			tax_on_additional_salary: source.tax_on_additional_salary || 0,
 		});
 	});
 }

@@ -1,5 +1,5 @@
 import frappe
-from frappe.utils import add_days, cint, flt, getdate
+from frappe.utils import cint, flt, getdate
 
 from hrms.hr.doctype.compensatory_leave_request.compensatory_leave_request import (
 	CompensatoryLeaveRequest,
@@ -15,8 +15,8 @@ class JTQCompensatoryLeaveRequest(CompensatoryLeaveRequest):
 				employee=self.employee,
 				employee_name=self.employee_name,
 				leave_type=self.leave_type,
-				from_date=add_days(self.work_end_date, 1),
-				to_date=leave_period[0].to_date,
+				from_date=self.work_from_date,
+				to_date=self.work_end_date,
 				carry_forward=cint(is_carry_forward),
 				new_leaves_allocated=date_difference,
 				total_leaves_allocated=date_difference,
@@ -121,7 +121,7 @@ def is_zeroed_request_created_allocation(leave_allocation, doc):
 	return (
 		allocation.employee == doc.employee
 		and allocation.leave_type == doc.leave_type
-		and getdate(allocation.from_date) == getdate(add_days(doc.work_end_date, 1))
+		and getdate(allocation.from_date) == getdate(doc.work_from_date)
 		and flt(allocation.new_leaves_allocated) <= 0
 		and flt(allocation.total_leaves_allocated) <= 0
 	)

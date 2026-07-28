@@ -10,6 +10,9 @@
   "abbr",
   "column_break_3",
   "amount",
+  "year_to_date",
+  "additional_salary",
+  "is_recurring_additional_salary",
   "depends_on_payment_days",
   "is_tax_applicable",
   "condition",
@@ -21,7 +24,11 @@
   "exempted_from_income_tax",
   "do_not_include_in_total",
   "do_not_include_in_accounts",
-  "deduct_full_tax_on_selected_payroll_date"
+  "deduct_full_tax_on_selected_payroll_date",
+  "default_amount",
+  "additional_amount",
+  "tax_on_flexible_benefit",
+  "tax_on_additional_salary"
  ],
  "fields": [
   {
@@ -53,6 +60,28 @@
    "in_list_view": 1,
    "label": "Amount",
    "options": "currency"
+  },
+  {
+   "fieldname": "year_to_date",
+   "fieldtype": "Currency",
+   "label": "Year To Date",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "additional_salary",
+   "fieldtype": "Link",
+   "label": "Additional Salary",
+   "options": "Additional Salary",
+   "read_only": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "is_recurring_additional_salary",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Recurring Additional Salary",
+   "read_only": 1
   },
   {
    "columns": 1,
@@ -150,6 +179,34 @@
    "columns": 1,
    "in_list_view": 1,
    "label": "Deduct Full Tax On Selected Payroll Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "default_amount",
+   "fieldtype": "Currency",
+   "label": "Default Amount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "additional_amount",
+   "fieldtype": "Currency",
+   "label": "Additional Amount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tax_on_flexible_benefit",
+   "fieldtype": "Currency",
+   "label": "Tax on Flexible Benefit",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tax_on_additional_salary",
+   "fieldtype": "Currency",
+   "label": "Tax on Additional Salary",
+   "options": "currency",
    "read_only": 1
   }
  ],

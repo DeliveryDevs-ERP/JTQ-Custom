@@ -204,6 +204,9 @@ def get_employee_component_row(row):
 		"salary_component": row.salary_component,
 		"abbr": row.abbr,
 		"amount": flt(row.amount),
+		"year_to_date": flt(row.get("year_to_date")),
+		"additional_salary": row.get("additional_salary"),
+		"is_recurring_additional_salary": row.get("is_recurring_additional_salary"),
 		"depends_on_payment_days": row.depends_on_payment_days,
 		"is_tax_applicable": row.is_tax_applicable,
 		"condition": row.condition,
@@ -216,6 +219,10 @@ def get_employee_component_row(row):
 		"do_not_include_in_total": row.do_not_include_in_total,
 		"do_not_include_in_accounts": row.do_not_include_in_accounts,
 		"deduct_full_tax_on_selected_payroll_date": row.deduct_full_tax_on_selected_payroll_date,
+		"default_amount": flt(row.get("default_amount")),
+		"additional_amount": flt(row.get("additional_amount")),
+		"tax_on_flexible_benefit": flt(row.get("tax_on_flexible_benefit")),
+		"tax_on_additional_salary": flt(row.get("tax_on_additional_salary")),
 	}
 
 
@@ -374,8 +381,10 @@ def append_salary_structure_component(salary_structure, table_field, source_row)
 	row.salary_component = source_row.salary_component
 	row.abbr = source_row.abbr
 	row.amount = flt(source_row.amount)
-	row.default_amount = flt(source_row.amount)
-	row.additional_amount = 0
+	row.default_amount = flt(source_row.get("default_amount")) or flt(source_row.amount)
+	row.additional_amount = flt(source_row.get("additional_amount"))
+	row.additional_salary = source_row.get("additional_salary")
+	row.is_recurring_additional_salary = source_row.get("is_recurring_additional_salary")
 	row.condition = source_row.condition or ""
 	row.formula = source_row.formula or ""
 	row.amount_based_on_formula = source_row.amount_based_on_formula
@@ -388,6 +397,8 @@ def append_salary_structure_component(salary_structure, table_field, source_row)
 	row.do_not_include_in_total = source_row.do_not_include_in_total
 	row.do_not_include_in_accounts = source_row.do_not_include_in_accounts
 	row.deduct_full_tax_on_selected_payroll_date = source_row.deduct_full_tax_on_selected_payroll_date
+	row.tax_on_flexible_benefit = flt(source_row.get("tax_on_flexible_benefit"))
+	row.tax_on_additional_salary = flt(source_row.get("tax_on_additional_salary"))
 	row.custom_jtq_auto_populated = 1
 	row.custom_jtq_amount_changed = 1
 

@@ -24,6 +24,7 @@ fixtures = [
 doctype_js = {
 	"Attendance": "public/js/attendance.js",
 	"Attendance Request": "public/js/attendance_request.js",
+	"Compensatory Leave Request": "public/js/compensatory_leave_request.js",
 	"Employee": "public/js/employee.js",
 	"JTQ Bulk Attendance": "public/js/jtq_bulk_attendance.js",
 	"Payroll Entry": "public/js/payroll_entry.js",
