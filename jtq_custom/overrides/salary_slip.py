@@ -1,5 +1,5 @@
 import frappe
-from frappe.utils import flt
+from frappe.utils import add_months, cstr, flt, getdate
 
 from hrms.payroll.doctype.salary_slip.salary_slip import (
 	SalarySlip,
@@ -10,11 +10,47 @@ from jtq_custom.payroll import get_month_count
 
 
 class JTQSalarySlip(SalarySlip):
+	def add_structure_component(self, struct_row, component_type):
+		if (
+			component_type == "earnings"
+			and is_medical_allowance_component(struct_row.salary_component)
+			and not self.is_medical_allowance_eligible()
+		):
+			self.data[struct_row.abbr] = 0
+			self.default_data[struct_row.abbr] = 0
+			return
+
+		super().add_structure_component(struct_row, component_type)
+
 	def add_additional_salary_components(self, component_type):
 		super().add_additional_salary_components(component_type)
 
+		if component_type == "earnings":
+			self.apply_medical_allowance_eligibility()
+
 		if component_type == "deductions":
 			self.apply_advance_recovery_controls()
+
+	def is_medical_allowance_eligible(self):
+		joining_date = frappe.db.get_value("Employee", self.employee, "date_of_joining")
+		if not (joining_date and self.start_date):
+			return False
+
+		eligibility_date = add_months(getdate(joining_date), 6)
+		return getdate(self.start_date) >= eligibility_date
+
+	def apply_medical_allowance_eligibility(self):
+		if self.is_medical_allowance_eligible():
+			return
+
+		self.set(
+			"earnings",
+			[
+				row
+				for row in self.get("earnings")
+				if not is_medical_allowance_component(row.salary_component)
+			],
+		)
 
 	def apply_advance_recovery_controls(self):
 		for additional_salary in get_active_advance_recoveries(
@@ -48,6 +84,10 @@ class JTQSalarySlip(SalarySlip):
 				),
 				is_recurring=additional_salary.is_recurring,
 			)
+
+
+def is_medical_allowance_component(salary_component):
+	return cstr(salary_component).strip().lower() == "medical allowance"
 
 
 def get_active_advance_recoveries(employee, start_date, end_date):

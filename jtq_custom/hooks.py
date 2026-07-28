@@ -35,6 +35,7 @@ doctype_list_js = {
 }
 
 override_doctype_class = {
+	"Compensatory Leave Request": "jtq_custom.overrides.compensatory_leave_request.JTQCompensatoryLeaveRequest",
 	"Payroll Entry": "jtq_custom.overrides.payroll_entry.JTQPayrollEntry",
 	"Salary Slip": "jtq_custom.overrides.salary_slip.JTQSalarySlip",
 	"Salary Structure": "jtq_custom.overrides.salary_structure.JTQSalaryStructure",
@@ -86,4 +87,5 @@ after_migrate = [
 	"jtq_custom.patches.update_custom_master_fields.execute",
 	"jtq_custom.patches.add_compensatory_leave_working_hours_field.execute",
 	"jtq_custom.patches.add_employee_salary_structure_assignment_fields.execute",
+	"jtq_custom.patches.add_compensatory_leave_allocation_reference.execute",
 ]
