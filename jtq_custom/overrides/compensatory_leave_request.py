@@ -35,9 +35,11 @@ class JTQCompensatoryLeaveRequest(CompensatoryLeaveRequest):
 		return allocation
 
 	def on_cancel(self):
+		linked_allocation = self.leave_allocation
 		super().on_cancel()
 		frappe.clear_messages()
-		cancel_linked_compensatory_leave_allocation(self)
+		cancel_linked_compensatory_leave_allocation(self, linked_allocation)
+		clear_compensatory_leave_allocation_link(self, linked_allocation)
 		frappe.clear_messages()
 
 	def on_trash(self):
@@ -45,14 +47,13 @@ class JTQCompensatoryLeaveRequest(CompensatoryLeaveRequest):
 		frappe.clear_messages()
 
 
-def cancel_linked_compensatory_leave_allocation(doc):
-	allocation_name = get_linked_compensatory_leave_allocation(doc)
+def cancel_linked_compensatory_leave_allocation(doc, allocation_name=None):
+	allocation_name = get_linked_compensatory_leave_allocation(doc, allocation_name)
 	if not allocation_name:
 		return
 
 	allocation = frappe.get_doc("Leave Allocation", allocation_name)
 	if allocation.docstatus != 1:
-		clear_compensatory_leave_allocation_link(doc)
 		return
 
 	if has_linked_leave_applications(allocation.name):
@@ -64,7 +65,6 @@ def cancel_linked_compensatory_leave_allocation(doc):
 
 	allocation.flags.ignore_permissions = True
 	allocation.cancel()
-	clear_compensatory_leave_allocation_link(doc)
 	frappe.clear_messages()
 
 
@@ -91,16 +91,46 @@ def delete_linked_compensatory_leave_allocation(doc):
 	if allocation.docstatus == 2:
 		allocation.flags.ignore_permissions = True
 		allocation.delete()
-		clear_compensatory_leave_allocation_link(doc)
+		clear_compensatory_leave_allocation_link(doc, allocation_name)
 		frappe.clear_messages()
 
 
-def clear_compensatory_leave_allocation_link(doc):
-	if not doc.get("leave_allocation"):
+def clear_compensatory_leave_allocation_link(doc, allocation_name=None):
+	allocation_name = allocation_name or doc.get("leave_allocation")
+
+	if allocation_name and frappe.db.exists("Leave Allocation", allocation_name):
+		clear_leave_allocation_request_reference(allocation_name, doc.name)
+
+	if doc.get("leave_allocation"):
+		frappe.db.set_value(
+			"Compensatory Leave Request",
+			doc.name,
+			"leave_allocation",
+			None,
+			update_modified=False,
+		)
+		doc.leave_allocation = None
+
+
+def clear_leave_allocation_request_reference(allocation_name, compensatory_leave_request):
+	if not frappe.get_meta("Leave Allocation").has_field("custom_compensatory_leave_request"):
 		return
 
-	doc.db_set("leave_allocation", None, update_modified=False)
-	doc.leave_allocation = None
+	if (
+		frappe.db.get_value(
+			"Leave Allocation",
+			allocation_name,
+			"custom_compensatory_leave_request",
+		)
+		== compensatory_leave_request
+	):
+		frappe.db.set_value(
+			"Leave Allocation",
+			allocation_name,
+			"custom_compensatory_leave_request",
+			None,
+			update_modified=False,
+		)
 
 
 def clear_cancelled_compensatory_leave_allocation_links():
@@ -113,16 +143,18 @@ def clear_cancelled_compensatory_leave_allocation_links():
 		fields=["name", "leave_allocation"],
 	):
 		doc = frappe.get_doc("Compensatory Leave Request", request.name)
-		if get_linked_compensatory_leave_allocation(doc):
-			clear_compensatory_leave_allocation_link(doc)
+		clear_compensatory_leave_allocation_link(doc, request.leave_allocation)
+
+	frappe.db.commit()
 
 
-def get_linked_compensatory_leave_allocation(doc):
-	if doc.get("leave_allocation") and is_allocation_created_by_request(doc.leave_allocation, doc.name):
-		return doc.leave_allocation
+def get_linked_compensatory_leave_allocation(doc, allocation_name=None):
+	allocation_name = allocation_name or doc.get("leave_allocation")
+	if allocation_name and is_allocation_created_by_request(allocation_name, doc.name):
+		return allocation_name
 
-	if doc.get("leave_allocation") and is_zeroed_request_created_allocation(doc.leave_allocation, doc):
-		return doc.leave_allocation
+	if allocation_name and is_zeroed_request_created_allocation(allocation_name, doc):
+		return allocation_name
 
 	return frappe.db.get_value(
 		"Leave Allocation",
