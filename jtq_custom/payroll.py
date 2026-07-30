@@ -1,10 +1,15 @@
 import frappe
 from frappe import _
 from frappe.model.naming import make_autoname
-from frappe.utils import add_months, cstr, flt, getdate
+from frappe.utils import add_months, cstr, flt, get_first_day, getdate, nowdate
 
 
 MEDICAL_ALLOWANCE_COMPONENT = "Medical Allowance"
+
+
+def sync_salary_structure_title(doc, method=None):
+	if not doc.get("custom_salary_structure_title"):
+		doc.custom_salary_structure_title = doc.name
 
 
 def sync_additional_salary_controls(doc, method=None):
@@ -195,15 +200,16 @@ def validate_salary_structure_for_employee_assignment(salary_structure_doc):
 		)
 
 
-def get_employee_component_rows(rows):
-	return [get_employee_component_row(row) for row in rows]
+def get_employee_component_rows(rows, zero_amount=True):
+	return [get_employee_component_row(row, zero_amount=zero_amount) for row in rows]
 
 
-def get_employee_component_row(row):
+def get_employee_component_row(row, zero_amount=True):
+	amount = 0 if zero_amount else flt(row.amount)
 	return {
 		"salary_component": row.salary_component,
 		"abbr": row.abbr,
-		"amount": flt(row.amount),
+		"amount": amount,
 		"year_to_date": flt(row.get("year_to_date")),
 		"additional_salary": row.get("additional_salary"),
 		"is_recurring_additional_salary": row.get("is_recurring_additional_salary"),
@@ -219,7 +225,7 @@ def get_employee_component_row(row):
 		"do_not_include_in_total": row.do_not_include_in_total,
 		"do_not_include_in_accounts": row.do_not_include_in_accounts,
 		"deduct_full_tax_on_selected_payroll_date": row.deduct_full_tax_on_selected_payroll_date,
-		"default_amount": flt(row.get("default_amount")),
+		"default_amount": flt(row.get("default_amount")) or flt(row.amount),
 		"additional_amount": flt(row.get("additional_amount")),
 		"tax_on_flexible_benefit": flt(row.get("tax_on_flexible_benefit")),
 		"tax_on_additional_salary": flt(row.get("tax_on_additional_salary")),
@@ -235,6 +241,13 @@ def is_medical_allowance_eligible(employee=None, assignment_from_date=None, date
 
 	eligibility_date = add_months(getdate(date_of_joining), 6)
 	return getdate(assignment_from_date) >= eligibility_date
+
+
+def get_medical_allowance_assignment_date(date_of_joining):
+	eligibility_date = add_months(getdate(date_of_joining), 6)
+	if eligibility_date.day == 1:
+		return eligibility_date
+	return get_first_day(add_months(eligibility_date, 1))
 
 
 def remove_medical_allowance_rows(rows):
@@ -300,6 +313,134 @@ def create_salary_assignment_from_employee(employee):
 		"salary_structure": employee_salary_structure.name,
 		"salary_structure_assignment": assignment.name,
 	}
+
+
+def auto_create_medical_allowance_assignments():
+	today = getdate(nowdate())
+	employees = frappe.get_all(
+		"Employee",
+		filters={
+			"status": "Active",
+			"date_of_joining": ["is", "set"],
+			"custom_salary_structure": ["is", "set"],
+		},
+		fields=[
+			"name",
+			"date_of_joining",
+			"custom_salary_structure",
+			"custom_salary_assignment_from_date",
+		],
+	)
+
+	for employee in employees:
+		assignment_from_date = get_medical_allowance_assignment_date(employee.date_of_joining)
+		if assignment_from_date > today:
+			continue
+
+		if has_medical_allowance_assignment(employee.name, assignment_from_date):
+			continue
+
+		try:
+			create_medical_allowance_assignment(employee.name, assignment_from_date)
+		except Exception:
+			frappe.log_error(
+				frappe.get_traceback(),
+				_("Medical Allowance Auto Assignment Failed for {0}").format(employee.name),
+			)
+
+
+def has_medical_allowance_assignment(employee, assignment_from_date):
+	assignments = frappe.get_all(
+		"Salary Structure Assignment",
+		filters={
+			"employee": employee,
+			"docstatus": 1,
+			"from_date": [">=", assignment_from_date],
+		},
+		fields=["name", "salary_structure"],
+		order_by="from_date desc, creation desc",
+	)
+
+	return any(salary_structure_has_medical_allowance(row.salary_structure) for row in assignments)
+
+
+def salary_structure_has_medical_allowance(salary_structure):
+	return frappe.db.exists(
+		"Salary Detail",
+		{
+			"parent": salary_structure,
+			"parenttype": "Salary Structure",
+			"parentfield": "earnings",
+			"salary_component": MEDICAL_ALLOWANCE_COMPONENT,
+		},
+	)
+
+
+def create_medical_allowance_assignment(employee, assignment_from_date):
+	employee_doc = frappe.get_doc("Employee", employee)
+	if not employee_doc.get("custom_salary_structure"):
+		return
+
+	template = frappe.get_doc("Salary Structure", employee_doc.custom_salary_structure)
+	validate_salary_structure_for_employee_assignment(template)
+
+	if employee_doc.company != template.company:
+		frappe.throw(
+			_("Selected Salary Structure belongs to {0}, but Employee belongs to {1}.").format(
+				frappe.bold(template.company), frappe.bold(employee_doc.company)
+			)
+		)
+
+	ensure_employee_medical_allowance_row(employee_doc, template)
+	validate_employee_salary_components(employee_doc)
+	cancel_latest_salary_structure_assignment(employee_doc.name)
+
+	employee_salary_structure = create_employee_salary_structure(
+		employee_doc,
+		template,
+		getdate(assignment_from_date),
+	)
+	assignment = create_employee_salary_structure_assignment(
+		employee_doc,
+		employee_salary_structure,
+		getdate(assignment_from_date),
+	)
+	employee_doc.db_set(
+		{
+			"custom_salary_assignment_from_date": assignment.from_date,
+			"custom_current_salary_structure_assignment": assignment.name,
+		},
+		update_modified=False,
+	)
+
+	return assignment
+
+
+def ensure_employee_medical_allowance_row(employee_doc, template):
+	if any(is_medical_allowance_component(row.salary_component) for row in employee_doc.get("custom_employee_earnings")):
+		return
+
+	template_medical_row = next(
+		(
+			row
+			for row in template.get("earnings")
+			if is_medical_allowance_component(row.salary_component)
+		),
+		None,
+	)
+	if not template_medical_row:
+		frappe.throw(
+			_("Salary Structure {0} does not contain Medical Allowance.").format(
+				frappe.bold(template.name)
+			)
+		)
+
+	row = employee_doc.append("custom_employee_earnings", {})
+	for fieldname, value in get_employee_component_row(template_medical_row, zero_amount=False).items():
+		row.set(fieldname, value)
+
+	employee_doc.flags.ignore_permissions = True
+	employee_doc.save()
 
 
 def validate_employee_salary_components(employee_doc):

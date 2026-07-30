@@ -60,6 +60,12 @@ doc_events = {
 	"Compensatory Leave Request": {
 		"validate": "jtq_custom.compensatory_leave.validate_compensatory_leave_working_hours",
 	},
+	"Leave Application": {
+		"validate": "jtq_custom.leave_application.validate_minimum_consecutive_leaves",
+	},
+	"Leave Type": {
+		"validate": "jtq_custom.leave_application.validate_leave_type_minimum_consecutive_leaves",
+	},
 	"Province": {
 		"validate": "jtq_custom.master_utils.set_master_id",
 	},
@@ -73,7 +79,14 @@ doc_events = {
 	},
 	"Salary Structure": {
 		"before_insert": "jtq_custom.payroll.populate_salary_structure_components",
+		"validate": "jtq_custom.payroll.sync_salary_structure_title",
 	},
+}
+
+scheduler_events = {
+	"daily": [
+		"jtq_custom.payroll.auto_create_medical_allowance_assignments",
+	],
 }
 
 after_install = "jtq_custom.patches.add_bulk_attendance_custom_fields.execute"
@@ -89,4 +102,6 @@ after_migrate = [
 	"jtq_custom.patches.add_compensatory_leave_working_hours_field.execute",
 	"jtq_custom.patches.add_employee_salary_structure_assignment_fields.execute",
 	"jtq_custom.patches.add_compensatory_leave_allocation_reference.execute",
+	"jtq_custom.patches.add_minimum_consecutive_leave_field.execute",
+	"jtq_custom.patches.add_salary_structure_title_display.execute",
 ]
