@@ -52,6 +52,7 @@ def cancel_linked_compensatory_leave_allocation(doc):
 
 	allocation = frappe.get_doc("Leave Allocation", allocation_name)
 	if allocation.docstatus != 1:
+		clear_compensatory_leave_allocation_link(doc)
 		return
 
 	if has_linked_leave_applications(allocation.name):
@@ -63,6 +64,7 @@ def cancel_linked_compensatory_leave_allocation(doc):
 
 	allocation.flags.ignore_permissions = True
 	allocation.cancel()
+	clear_compensatory_leave_allocation_link(doc)
 	frappe.clear_messages()
 
 
@@ -89,7 +91,30 @@ def delete_linked_compensatory_leave_allocation(doc):
 	if allocation.docstatus == 2:
 		allocation.flags.ignore_permissions = True
 		allocation.delete()
+		clear_compensatory_leave_allocation_link(doc)
 		frappe.clear_messages()
+
+
+def clear_compensatory_leave_allocation_link(doc):
+	if not doc.get("leave_allocation"):
+		return
+
+	doc.db_set("leave_allocation", None, update_modified=False)
+	doc.leave_allocation = None
+
+
+def clear_cancelled_compensatory_leave_allocation_links():
+	for request in frappe.get_all(
+		"Compensatory Leave Request",
+		filters={
+			"docstatus": 2,
+			"leave_allocation": ["is", "set"],
+		},
+		fields=["name", "leave_allocation"],
+	):
+		doc = frappe.get_doc("Compensatory Leave Request", request.name)
+		if get_linked_compensatory_leave_allocation(doc):
+			clear_compensatory_leave_allocation_link(doc)
 
 
 def get_linked_compensatory_leave_allocation(doc):
