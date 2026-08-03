@@ -482,6 +482,74 @@ def cancel_latest_salary_structure_assignment(employee):
 	assignment = frappe.get_doc("Salary Structure Assignment", latest_assignment)
 	assignment.flags.ignore_permissions = True
 	assignment.cancel()
+	unlink_cancelled_salary_structure_assignment(assignment.name)
+
+
+def unlink_salary_structure_on_assignment_cancel(doc, method=None):
+	unlink_cancelled_salary_structure_assignment(doc.name)
+
+
+def unlink_cancelled_salary_structure_assignment(assignment):
+	assignment_data = frappe.db.get_value(
+		"Salary Structure Assignment",
+		assignment,
+		["employee", "salary_structure", "docstatus"],
+		as_dict=True,
+	)
+	if not assignment_data or assignment_data.docstatus != 2:
+		return
+
+	if not is_employee_generated_salary_structure(
+		assignment_data.employee,
+		assignment_data.salary_structure,
+	):
+		return
+
+	if (
+		frappe.db.get_value(
+			"Employee",
+			assignment_data.employee,
+			"custom_current_salary_structure_assignment",
+		)
+		== assignment
+	):
+		frappe.db.set_value(
+			"Employee",
+			assignment_data.employee,
+			"custom_current_salary_structure_assignment",
+			None,
+			update_modified=False,
+		)
+
+	frappe.db.set_value(
+		"Salary Structure Assignment",
+		assignment,
+		"salary_structure",
+		None,
+		update_modified=False,
+	)
+
+
+def is_employee_generated_salary_structure(employee, salary_structure):
+	if not employee or not salary_structure:
+		return False
+
+	return cstr(salary_structure).startswith(f"{employee}-SS-")
+
+
+def unlink_cancelled_employee_salary_structure_assignments():
+	for assignment in frappe.get_all(
+		"Salary Structure Assignment",
+		filters={
+			"docstatus": 2,
+			"salary_structure": ["is", "set"],
+		},
+		fields=["name", "employee", "salary_structure"],
+	):
+		if is_employee_generated_salary_structure(assignment.employee, assignment.salary_structure):
+			unlink_cancelled_salary_structure_assignment(assignment.name)
+
+	frappe.db.commit()
 
 
 def create_employee_salary_structure(employee_doc, template, assignment_from_date):

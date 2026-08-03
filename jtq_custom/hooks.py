@@ -77,6 +77,9 @@ doc_events = {
 		"on_submit": "jtq_custom.payroll.sync_advance_recovery_from_salary_slip",
 		"on_cancel": "jtq_custom.payroll.sync_advance_recovery_from_salary_slip",
 	},
+	"Salary Structure Assignment": {
+		"on_cancel": "jtq_custom.payroll.unlink_salary_structure_on_assignment_cancel",
+	},
 	"Salary Structure": {
 		"before_insert": "jtq_custom.payroll.populate_salary_structure_components",
 		"validate": "jtq_custom.payroll.sync_salary_structure_title",
