@@ -107,4 +107,5 @@ after_migrate = [
 	"jtq_custom.patches.add_compensatory_leave_allocation_reference.execute",
 	"jtq_custom.patches.add_minimum_consecutive_leave_field.execute",
 	"jtq_custom.patches.add_salary_structure_title_display.execute",
+	"jtq_custom.patches.add_employee_appointment_letter_fields.execute",
 ]
