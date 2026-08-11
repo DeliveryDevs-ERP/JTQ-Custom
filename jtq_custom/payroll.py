@@ -286,13 +286,11 @@ def create_salary_assignment_from_employee(employee):
 			)
 		)
 
-	validate_employee_salary_components(employee_doc)
 	cancel_latest_salary_structure_assignment(employee_doc.name)
 
-	employee_salary_structure = create_employee_salary_structure(employee_doc, template, getdate(from_date))
 	assignment = create_employee_salary_structure_assignment(
 		employee_doc,
-		employee_salary_structure,
+		template,
 		getdate(from_date),
 	)
 
@@ -310,7 +308,7 @@ def create_salary_assignment_from_employee(employee):
 	)
 
 	return {
-		"salary_structure": employee_salary_structure.name,
+		"salary_structure": template.name,
 		"salary_structure_assignment": assignment.name,
 	}
 
@@ -391,18 +389,14 @@ def create_medical_allowance_assignment(employee, assignment_from_date):
 			)
 		)
 
-	ensure_employee_medical_allowance_row(employee_doc, template)
-	validate_employee_salary_components(employee_doc)
+	if not salary_structure_has_medical_allowance(template.name):
+		return
+
 	cancel_latest_salary_structure_assignment(employee_doc.name)
 
-	employee_salary_structure = create_employee_salary_structure(
-		employee_doc,
-		template,
-		getdate(assignment_from_date),
-	)
 	assignment = create_employee_salary_structure_assignment(
 		employee_doc,
-		employee_salary_structure,
+		template,
 		getdate(assignment_from_date),
 	)
 	employee_doc.db_set(
