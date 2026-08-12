@@ -475,15 +475,19 @@ def cancel_latest_salary_structure_assignment(employee):
 
 	assignment = frappe.get_doc("Salary Structure Assignment", latest_assignment)
 	assignment.flags.ignore_permissions = True
+	assignment.flags.skip_employee_salary_tab_clear = True
 	assignment.cancel()
-	unlink_cancelled_salary_structure_assignment(assignment.name)
+	unlink_cancelled_salary_structure_assignment(assignment.name, clear_salary_tab=False)
 
 
 def unlink_salary_structure_on_assignment_cancel(doc, method=None):
-	unlink_cancelled_salary_structure_assignment(doc.name)
+	unlink_cancelled_salary_structure_assignment(
+		doc.name,
+		clear_salary_tab=not doc.flags.get("skip_employee_salary_tab_clear"),
+	)
 
 
-def unlink_cancelled_salary_structure_assignment(assignment):
+def unlink_cancelled_salary_structure_assignment(assignment, clear_salary_tab=True):
 	assignment_data = frappe.db.get_value(
 		"Salary Structure Assignment",
 		assignment,
@@ -504,6 +508,17 @@ def unlink_cancelled_salary_structure_assignment(assignment):
 	)
 	if employee_fields:
 		updates = {}
+		should_clear_salary_tab = clear_salary_tab and (
+			employee_fields.custom_current_salary_structure_assignment == assignment
+			or (
+				employee_fields.custom_salary_structure == assignment_data.salary_structure
+				and not has_active_salary_structure_assignment(
+					assignment_data.employee,
+					assignment_data.salary_structure,
+				)
+			)
+		)
+
 		if employee_fields.custom_current_salary_structure_assignment == assignment:
 			updates["custom_current_salary_structure_assignment"] = None
 		if (
@@ -517,6 +532,8 @@ def unlink_cancelled_salary_structure_assignment(assignment):
 			)
 		):
 			updates["custom_salary_structure"] = None
+		if should_clear_salary_tab:
+			updates["custom_salary_assignment_from_date"] = None
 
 		if updates:
 			frappe.db.set_value(
@@ -525,6 +542,8 @@ def unlink_cancelled_salary_structure_assignment(assignment):
 				updates,
 				update_modified=False,
 			)
+		if should_clear_salary_tab:
+			clear_employee_salary_component_rows(assignment_data.employee)
 
 	frappe.db.set_value(
 		"Salary Structure Assignment",
@@ -533,6 +552,18 @@ def unlink_cancelled_salary_structure_assignment(assignment):
 		None,
 		update_modified=False,
 	)
+
+
+def clear_employee_salary_component_rows(employee):
+	for parentfield in ("custom_employee_earnings", "custom_employee_deductions"):
+		frappe.db.delete(
+			"Employee Salary Component Detail",
+			{
+				"parent": employee,
+				"parenttype": "Employee",
+				"parentfield": parentfield,
+			},
+		)
 
 
 def has_active_salary_structure_assignment(employee, salary_structure):
