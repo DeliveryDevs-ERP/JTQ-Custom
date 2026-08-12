@@ -493,27 +493,38 @@ def unlink_cancelled_salary_structure_assignment(assignment):
 	if not assignment_data or assignment_data.docstatus != 2:
 		return
 
-	if not is_employee_generated_salary_structure(
-		assignment_data.employee,
-		assignment_data.salary_structure,
-	):
+	if not assignment_data.salary_structure:
 		return
 
-	if (
-		frappe.db.get_value(
-			"Employee",
-			assignment_data.employee,
-			"custom_current_salary_structure_assignment",
-		)
-		== assignment
-	):
-		frappe.db.set_value(
-			"Employee",
-			assignment_data.employee,
-			"custom_current_salary_structure_assignment",
-			None,
-			update_modified=False,
-		)
+	employee_fields = frappe.db.get_value(
+		"Employee",
+		assignment_data.employee,
+		["custom_salary_structure", "custom_current_salary_structure_assignment"],
+		as_dict=True,
+	)
+	if employee_fields:
+		updates = {}
+		if employee_fields.custom_current_salary_structure_assignment == assignment:
+			updates["custom_current_salary_structure_assignment"] = None
+		if (
+			employee_fields.custom_salary_structure == assignment_data.salary_structure
+			and (
+				employee_fields.custom_current_salary_structure_assignment == assignment
+				or not has_active_salary_structure_assignment(
+					assignment_data.employee,
+					assignment_data.salary_structure,
+				)
+			)
+		):
+			updates["custom_salary_structure"] = None
+
+		if updates:
+			frappe.db.set_value(
+				"Employee",
+				assignment_data.employee,
+				updates,
+				update_modified=False,
+			)
 
 	frappe.db.set_value(
 		"Salary Structure Assignment",
@@ -521,6 +532,17 @@ def unlink_cancelled_salary_structure_assignment(assignment):
 		"salary_structure",
 		None,
 		update_modified=False,
+	)
+
+
+def has_active_salary_structure_assignment(employee, salary_structure):
+	return frappe.db.exists(
+		"Salary Structure Assignment",
+		{
+			"employee": employee,
+			"salary_structure": salary_structure,
+			"docstatus": 1,
+		},
 	)
 
 
@@ -538,10 +560,9 @@ def unlink_cancelled_employee_salary_structure_assignments():
 			"docstatus": 2,
 			"salary_structure": ["is", "set"],
 		},
-		fields=["name", "employee", "salary_structure"],
+		pluck="name",
 	):
-		if is_employee_generated_salary_structure(assignment.employee, assignment.salary_structure):
-			unlink_cancelled_salary_structure_assignment(assignment.name)
+		unlink_cancelled_salary_structure_assignment(assignment)
 
 	frappe.db.commit()
 
