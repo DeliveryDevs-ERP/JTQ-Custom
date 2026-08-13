@@ -111,5 +111,6 @@ after_migrate = [
 	"jtq_custom.patches.add_employee_appointment_letter_fields.execute",
 	"jtq_custom.patches.add_employee_religious_qualification_fields.execute",
 	"jtq_custom.patches.remove_employee_salary_empty_column_break.execute",
+	"jtq_custom.patches.ensure_employee_location_fields.execute",
 	"jtq_custom.patches.rework_employee_joining_location_fields.execute",
 ]
