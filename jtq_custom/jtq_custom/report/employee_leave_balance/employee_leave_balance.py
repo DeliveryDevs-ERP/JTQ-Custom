@@ -79,9 +79,9 @@ def get_employees(filters: Filters) -> list[dict]:
 			query = query.where(getattr(Employee, field) == filters.get(field))
 
 	custom_filter_map = {
-		"city": "custom_city",
-		"province": "custom_province",
-		"country": "custom_country",
+		"city": "city",
+		"province": "province",
+		"country": "country",
 		"work_mode": "custom_work_mode",
 	}
 	employee_meta = frappe.get_meta("Employee")

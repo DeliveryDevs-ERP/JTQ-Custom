@@ -25,46 +25,18 @@ def get_custom_fields():
 			"insert_after": "custom_jtq_details_section",
 		},
 		{
-			"fieldname": "custom_region",
-			"fieldtype": "Link",
-			"label": "Region",
-			"options": "Region",
-			"insert_after": "custom_madrasa",
-		},
-		{
-			"fieldname": "custom_city",
-			"fieldtype": "Link",
-			"label": "City",
-			"options": "City",
-			"insert_after": "custom_region",
-		},
-		{
-			"fieldname": "custom_province",
-			"fieldtype": "Link",
-			"label": "Province",
-			"options": "Province",
-			"insert_after": "custom_city",
-		},
-		{
-			"fieldname": "custom_country",
-			"fieldtype": "Link",
-			"label": "Country",
-			"options": "Country",
-			"insert_after": "custom_province",
-		},
-		{
 			"fieldname": "custom_work_mode",
 			"fieldtype": "Link",
 			"label": "Work Mode",
 			"options": "Work Mode",
-			"insert_after": "custom_country",
+			"insert_after": "region",
 		},
 		{
 			"fieldname": "custom_payroll_group",
 			"fieldtype": "Link",
 			"label": "Payroll Group",
 			"options": "Payroll Group",
-			"insert_after": "custom_work_mode",
+			"insert_after": "custom_madrasa",
 		},
 	]
 

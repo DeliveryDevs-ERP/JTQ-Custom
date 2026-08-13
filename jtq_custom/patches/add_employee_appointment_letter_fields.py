@@ -14,12 +14,5 @@ def get_custom_fields():
 				"label": "Father Name",
 				"insert_after": "employee_name",
 			},
-			{
-				"fieldname": "custom_employment_type",
-				"fieldtype": "Link",
-				"label": "Employment Type",
-				"options": "Employment Type",
-				"insert_after": "custom_payroll_group",
-			},
 		]
 	}

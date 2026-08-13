@@ -39,12 +39,12 @@ frappe.ui.form.on("JTQ Bulk Attendance Employee", {
 		}
 
 		frappe.db
-			.get_value("Employee", row.employee, ["employee_name", "custom_region", "custom_madrasa"])
+			.get_value("Employee", row.employee, ["employee_name", "region", "custom_madrasa"])
 			.then((response) => {
 				const employee = response.message || {};
 				frappe.model.set_value(cdt, cdn, {
 					employee_name: employee.employee_name || "",
-					region: employee.custom_region || "",
+					region: employee.region || "",
 					madrasa: employee.custom_madrasa || "",
 				});
 			});

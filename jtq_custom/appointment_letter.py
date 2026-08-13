@@ -22,7 +22,7 @@ def get_employee_appointment_context(employee):
 	medical_allowance = salary.get("medical_allowance", 0)
 	other_allowance = salary.get("other_allowance", 0)
 
-	employment_type = doc.get("employment_type") or doc.get("custom_employment_type")
+	employment_type = doc.get("employment_type")
 
 	return frappe._dict(
 		employee=doc.name,

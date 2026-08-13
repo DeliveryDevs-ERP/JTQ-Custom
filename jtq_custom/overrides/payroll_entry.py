@@ -79,10 +79,10 @@ class JTQPayrollEntry(PayrollEntry):
 def get_jtq_payroll_filter_map():
 	return {
 		"custom_work_mode": "custom_work_mode",
-		"custom_city": "custom_city",
-		"custom_country": "custom_country",
-		"custom_province": "custom_province",
-		"custom_region": "custom_region",
+		"custom_city": "city",
+		"custom_country": "country",
+		"custom_province": "province",
+		"custom_region": "region",
 		"custom_madrasa": "custom_madrasa",
 	}
 
