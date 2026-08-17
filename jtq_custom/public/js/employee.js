@@ -14,6 +14,7 @@ frappe.ui.form.on("Employee", {
 
 	refresh(frm) {
 		toggle_salary_assignment_button(frm);
+		set_hijri_date_if_needed(frm);
 	},
 
 	company(frm) {
@@ -24,6 +25,7 @@ frappe.ui.form.on("Employee", {
 	},
 
 	date_of_joining(frm) {
+		set_hijri_date(frm);
 		refetch_salary_components_if_ready(frm);
 	},
 
@@ -51,6 +53,37 @@ frappe.ui.form.on("Employee Salary Component Detail", {
 		toggle_salary_assignment_button(frm);
 	},
 });
+
+function set_hijri_date_if_needed(frm) {
+	if (frm.doc.date_of_joining && !frm.doc.custom_hijri_date) {
+		set_hijri_date(frm);
+	}
+}
+
+function set_hijri_date(frm) {
+	if (!frm.doc.date_of_joining) {
+		frm.set_value("custom_hijri_date", "");
+		return;
+	}
+
+	frappe.call({
+		method: "jtq_custom.employee.get_hijri_date_from_gregorian",
+		args: {
+			gregorian_date: frm.doc.date_of_joining,
+		},
+		callback(response) {
+			if (response.message) {
+				frm.set_value("custom_hijri_date", response.message);
+			} else {
+				frappe.msgprint({
+					title: __("Hijri Date"),
+					message: __("Unable to fetch Hijri date. Please check internet connectivity on the server."),
+					indicator: "orange",
+				});
+			}
+		},
+	});
+}
 
 function toggle_salary_assignment_button(frm) {
 	if (frm.is_new() || !frm.doc.custom_salary_structure || !frm.doc.custom_salary_assignment_from_date) {

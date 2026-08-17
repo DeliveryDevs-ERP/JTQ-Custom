@@ -74,6 +74,9 @@ doc_events = {
 		"before_validate": "jtq_custom.payroll.sync_additional_salary_controls",
 		"before_update_after_submit": "jtq_custom.payroll.sync_additional_salary_controls",
 	},
+	"Employee": {
+		"before_validate": "jtq_custom.employee.set_employee_hijri_date",
+	},
 	"Salary Slip": {
 		"on_submit": "jtq_custom.payroll.sync_advance_recovery_from_salary_slip",
 		"on_cancel": "jtq_custom.payroll.sync_advance_recovery_from_salary_slip",
@@ -113,4 +116,5 @@ after_migrate = [
 	"jtq_custom.patches.remove_employee_salary_empty_column_break.execute",
 	"jtq_custom.patches.ensure_employee_location_fields.execute",
 	"jtq_custom.patches.rework_employee_joining_location_fields.execute",
+	"jtq_custom.patches.add_employee_bank_branch_fields.execute",
 ]
