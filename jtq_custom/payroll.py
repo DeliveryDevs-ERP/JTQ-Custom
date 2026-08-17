@@ -175,8 +175,6 @@ def get_employee_salary_structure_components(
 	salary_structure_doc = frappe.get_doc("Salary Structure", salary_structure)
 	validate_salary_structure_for_employee_assignment(salary_structure_doc)
 	earnings = get_employee_component_rows(salary_structure_doc.get("earnings"))
-	if not is_medical_allowance_eligible(employee, assignment_from_date, date_of_joining):
-		earnings = remove_medical_allowance_rows(earnings)
 
 	return {
 		"salary_structure": salary_structure_doc.name,
@@ -615,12 +613,6 @@ def create_employee_salary_structure(employee_doc, template, assignment_from_dat
 	new_structure.payment_account = template.get("payment_account")
 
 	for source_row in employee_doc.get("custom_employee_earnings"):
-		if is_medical_allowance_component(source_row.salary_component) and not is_medical_allowance_eligible(
-			employee_doc.name,
-			assignment_from_date,
-			employee_doc.date_of_joining,
-		):
-			continue
 		append_salary_structure_component(new_structure, "earnings", source_row)
 	for source_row in employee_doc.get("custom_employee_deductions"):
 		append_salary_structure_component(new_structure, "deductions", source_row)
