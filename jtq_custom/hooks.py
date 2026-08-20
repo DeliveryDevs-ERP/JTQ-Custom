@@ -29,6 +29,7 @@ doctype_js = {
 	"Employee": "public/js/employee.js",
 	"JTQ Bulk Attendance": "public/js/jtq_bulk_attendance.js",
 	"Payroll Entry": "public/js/payroll_entry.js",
+	"Salary Slip": "public/js/salary_slip.js",
 	"Salary Structure": "public/js/salary_structure.js",
 }
 
@@ -117,4 +118,5 @@ after_migrate = [
 	"jtq_custom.patches.ensure_employee_location_fields.execute",
 	"jtq_custom.patches.rework_employee_joining_location_fields.execute",
 	"jtq_custom.patches.add_employee_bank_branch_fields.execute",
+	"jtq_custom.patches.add_employee_income_tax_slab_field.execute",
 ]

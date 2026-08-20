@@ -10,6 +10,19 @@ frappe.ui.form.on("Employee", {
 			}
 			return { filters };
 		});
+		frm.set_query("custom_income_tax_slab", () => {
+			const filters = {
+				docstatus: 1,
+				disabled: 0,
+			};
+			if (frm.doc.company) {
+				filters.company = frm.doc.company;
+			}
+			if (frm.doc.salary_currency) {
+				filters.currency = frm.doc.salary_currency;
+			}
+			return { filters };
+		});
 	},
 
 	refresh(frm) {

@@ -1,4 +1,5 @@
 import frappe
+from frappe import _
 from frappe.utils import add_months, cstr, flt, getdate
 
 from hrms.payroll.doctype.salary_slip.salary_slip import (
@@ -10,6 +11,27 @@ from jtq_custom.payroll import get_month_count
 
 
 class JTQSalarySlip(SalarySlip):
+	def check_sal_struct(self):
+		assignment = get_assigned_salary_structure(
+			self.employee,
+			start_date=self.start_date,
+			end_date=self.end_date,
+			joining_date=self.get("joining_date"),
+			payroll_frequency=self.get("payroll_frequency"),
+			salary_slip_based_on_timesheet=self.get("salary_slip_based_on_timesheet"),
+		)
+		if assignment:
+			self.salary_structure = assignment.salary_structure
+			return self.salary_structure
+
+		self.salary_structure = None
+		frappe.msgprint(
+			_("No active or default Salary Structure found for employee {0} for the given dates").format(
+				self.employee
+			),
+			title=_("Salary Structure Missing"),
+		)
+
 	def add_structure_component(self, struct_row, component_type):
 		if (
 			component_type == "earnings"
@@ -20,7 +42,20 @@ class JTQSalarySlip(SalarySlip):
 			self.default_data[struct_row.abbr] = 0
 			return
 
-		super().add_structure_component(struct_row, component_type)
+		employee_component = self.get_employee_component_row(
+			component_type,
+			struct_row.salary_component,
+		)
+		if not employee_component:
+			super().add_structure_component(struct_row, component_type)
+			return
+
+		original_values = stash_salary_structure_row_values(struct_row)
+		apply_employee_component_values(struct_row, employee_component)
+		try:
+			super().add_structure_component(struct_row, component_type)
+		finally:
+			restore_salary_structure_row_values(struct_row, original_values)
 
 	def add_additional_salary_components(self, component_type):
 		super().add_additional_salary_components(component_type)
@@ -84,6 +119,164 @@ class JTQSalarySlip(SalarySlip):
 				),
 				is_recurring=additional_salary.is_recurring,
 			)
+
+	def get_employee_component_row(self, component_type, salary_component):
+		if not self.employee or not salary_component:
+			return None
+
+		if not hasattr(self, "_jtq_employee_component_map"):
+			self._jtq_employee_component_map = {
+				"earnings": get_employee_salary_component_map(
+					self.employee,
+					"custom_employee_earnings",
+				),
+				"deductions": get_employee_salary_component_map(
+					self.employee,
+					"custom_employee_deductions",
+				),
+			}
+
+		return self._jtq_employee_component_map.get(component_type, {}).get(salary_component)
+
+
+@frappe.whitelist()
+def get_assigned_salary_structure(
+	employee,
+	start_date=None,
+	end_date=None,
+	joining_date=None,
+	payroll_frequency=None,
+	salary_slip_based_on_timesheet=0,
+):
+	if not employee:
+		return None
+
+	date_conditions = []
+	values = {"employee": employee}
+	for fieldname, value in {
+		"start_date": start_date,
+		"end_date": end_date,
+		"joining_date": joining_date,
+	}.items():
+		if value:
+			date_conditions.append(f"ssa.from_date <= %({fieldname})s")
+			values[fieldname] = getdate(value)
+
+	if not date_conditions:
+		return None
+
+	conditions = [
+		"ssa.docstatus = 1",
+		"ss.docstatus = 1",
+		"ss.is_active = 'Yes'",
+		"ssa.employee = %(employee)s",
+		f"({' or '.join(date_conditions)})",
+	]
+	if not flt(salary_slip_based_on_timesheet) and payroll_frequency:
+		conditions.append("ss.payroll_frequency = %(payroll_frequency)s")
+		values["payroll_frequency"] = payroll_frequency
+
+	assignments = frappe.db.sql(
+		"""
+		select
+			ssa.name,
+			ssa.employee,
+			ssa.salary_structure,
+			ssa.from_date,
+			ssa.company,
+			ssa.currency,
+			ssa.income_tax_slab
+		from `tabSalary Structure Assignment` ssa
+		inner join `tabSalary Structure` ss on ss.name = ssa.salary_structure
+		where {conditions}
+		order by ssa.from_date desc, ssa.creation desc
+		limit 1
+		""".format(conditions=" and ".join(conditions)),
+		values,
+		as_dict=True,
+	)
+	return assignments[0] if assignments else None
+
+
+def get_employee_salary_component_map(employee, parentfield):
+	rows = frappe.get_all(
+		"Employee Salary Component Detail",
+		filters={
+			"parent": employee,
+			"parenttype": "Employee",
+			"parentfield": parentfield,
+		},
+		fields=[
+			"salary_component",
+			"abbr",
+			"amount",
+			"default_amount",
+			"additional_amount",
+			"additional_salary",
+			"is_recurring_additional_salary",
+			"condition",
+			"formula",
+			"amount_based_on_formula",
+			"depends_on_payment_days",
+			"is_tax_applicable",
+			"is_flexible_benefit",
+			"variable_based_on_taxable_salary",
+			"statistical_component",
+			"exempted_from_income_tax",
+			"do_not_include_in_total",
+			"do_not_include_in_accounts",
+			"deduct_full_tax_on_selected_payroll_date",
+			"tax_on_flexible_benefit",
+			"tax_on_additional_salary",
+		],
+	)
+	return {row.salary_component: row for row in rows}
+
+
+def stash_salary_structure_row_values(row):
+	return {
+		fieldname: row.get(fieldname)
+		for fieldname in get_salary_detail_override_fields()
+	}
+
+
+def restore_salary_structure_row_values(row, values):
+	for fieldname, value in values.items():
+		row.set(fieldname, value)
+
+
+def apply_employee_component_values(struct_row, employee_component):
+	for fieldname in get_salary_detail_override_fields():
+		if fieldname == "amount":
+			struct_row.amount = flt(employee_component.get("amount"))
+			continue
+		if employee_component.get(fieldname) is not None:
+			struct_row.set(fieldname, employee_component.get(fieldname))
+
+
+def get_salary_detail_override_fields():
+	return [
+		"abbr",
+		"amount",
+		"default_amount",
+		"additional_amount",
+		"additional_salary",
+		"is_recurring_additional_salary",
+		"condition",
+		"formula",
+		"amount_based_on_formula",
+		"depends_on_payment_days",
+		"is_tax_applicable",
+		"is_flexible_benefit",
+		"variable_based_on_taxable_salary",
+		"statistical_component",
+		"exempted_from_income_tax",
+		"do_not_include_in_total",
+		"do_not_include_in_accounts",
+		"deduct_full_tax_on_selected_payroll_date",
+		"tax_on_flexible_benefit",
+		"tax_on_additional_salary",
+	]
 
 
 def is_medical_allowance_component(salary_component):

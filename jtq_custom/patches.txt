@@ -20,3 +20,4 @@ jtq_custom.patches.remove_employee_salary_empty_column_break
 jtq_custom.patches.ensure_employee_location_fields
 jtq_custom.patches.rework_employee_joining_location_fields
 jtq_custom.patches.add_employee_bank_branch_fields
+jtq_custom.patches.add_employee_income_tax_slab_field

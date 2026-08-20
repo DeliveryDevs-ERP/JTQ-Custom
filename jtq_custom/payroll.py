@@ -283,6 +283,7 @@ def create_salary_assignment_from_employee(employee):
 				frappe.bold(template.company), frappe.bold(employee_doc.company)
 			)
 		)
+	validate_employee_income_tax_slab(employee_doc, template)
 
 	cancel_latest_salary_structure_assignment(employee_doc.name)
 
@@ -389,6 +390,7 @@ def create_medical_allowance_assignment(employee, assignment_from_date):
 
 	if not salary_structure_has_medical_allowance(template.name):
 		return
+	validate_employee_income_tax_slab(employee_doc, template)
 
 	cancel_latest_salary_structure_assignment(employee_doc.name)
 
@@ -456,6 +458,37 @@ def validate_employee_salary_components(employee_doc):
 			seen_components.add(row.salary_component)
 			if flt(row.amount) < 0:
 				frappe.throw(_("{0} row {1}: Amount cannot be negative.").format(label, row.idx))
+
+
+def validate_employee_income_tax_slab(employee_doc, salary_structure):
+	income_tax_slab = employee_doc.get("custom_income_tax_slab")
+	if not income_tax_slab:
+		return
+
+	slab = frappe.db.get_value(
+		"Income Tax Slab",
+		income_tax_slab,
+		["docstatus", "disabled", "company", "currency"],
+		as_dict=True,
+	)
+	if not slab:
+		frappe.throw(_("Income Tax Slab {0} does not exist.").format(frappe.bold(income_tax_slab)))
+	if slab.docstatus != 1:
+		frappe.throw(_("Income Tax Slab {0} must be submitted.").format(frappe.bold(income_tax_slab)))
+	if slab.disabled:
+		frappe.throw(_("Income Tax Slab {0} is disabled.").format(frappe.bold(income_tax_slab)))
+	if slab.company and slab.company != employee_doc.company:
+		frappe.throw(
+			_("Income Tax Slab {0} belongs to {1}, but Employee belongs to {2}.").format(
+				frappe.bold(income_tax_slab), frappe.bold(slab.company), frappe.bold(employee_doc.company)
+			)
+		)
+	if slab.currency and slab.currency != salary_structure.currency:
+		frappe.throw(
+			_("Income Tax Slab {0} currency is {1}, but Salary Structure currency is {2}.").format(
+				frappe.bold(income_tax_slab), frappe.bold(slab.currency), frappe.bold(salary_structure.currency)
+			)
+		)
 
 
 def cancel_latest_salary_structure_assignment(employee):
@@ -657,6 +690,7 @@ def create_employee_salary_structure_assignment(employee_doc, salary_structure, 
 	assignment.company = employee_doc.company
 	assignment.currency = salary_structure.currency
 	assignment.from_date = from_date
+	assignment.income_tax_slab = employee_doc.get("custom_income_tax_slab")
 	assignment.base = get_component_total(salary_structure.get("earnings"))
 	assignment.variable = 0
 
