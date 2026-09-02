@@ -1,10 +1,10 @@
 import frappe
 from frappe import _
-from frappe.model.naming import make_autoname
-from frappe.utils import add_months, cstr, flt, get_first_day, getdate, nowdate
+from frappe.utils import add_days, cint, cstr, flt, getdate
 
 
-MEDICAL_ALLOWANCE_COMPONENT = "Medical Allowance"
+BULK_SALARY_ASSIGNMENT_EVENT = "jtq_bulk_salary_assignments_completed"
+BULK_SALARY_ASSIGNMENT_SYNC_LIMIT = 30
 
 
 def sync_salary_structure_title(doc, method=None):
@@ -98,6 +98,17 @@ def get_month_count(from_date, to_date):
 		return 0
 
 	return ((end_date.year - start_date.year) * 12) + (end_date.month - start_date.month) + 1
+
+
+def is_earning_eligible(date_of_joining, salary_slip_start_date, eligibility_after_days):
+	eligibility_after_days = max(cint(eligibility_after_days), 0)
+	if not eligibility_after_days:
+		return True
+	if not (date_of_joining and salary_slip_start_date):
+		return False
+
+	eligibility_date = getdate(add_days(date_of_joining, eligibility_after_days))
+	return getdate(salary_slip_start_date) >= eligibility_date
 
 
 def populate_salary_structure_components(doc, method=None):
@@ -230,42 +241,26 @@ def get_employee_component_row(row, zero_amount=True):
 	}
 
 
-def is_medical_allowance_eligible(employee=None, assignment_from_date=None, date_of_joining=None):
-	if employee and not date_of_joining:
-		date_of_joining = frappe.db.get_value("Employee", employee, "date_of_joining")
-
-	if not (date_of_joining and assignment_from_date):
-		return False
-
-	eligibility_date = add_months(getdate(date_of_joining), 6)
-	return getdate(assignment_from_date) >= eligibility_date
-
-
-def get_medical_allowance_assignment_date(date_of_joining):
-	eligibility_date = add_months(getdate(date_of_joining), 6)
-	if eligibility_date.day == 1:
-		return eligibility_date
-	return get_first_day(add_months(eligibility_date, 1))
-
-
-def remove_medical_allowance_rows(rows):
-	return [
-		row
-		for row in rows
-		if not is_medical_allowance_component(row.get("salary_component"))
-	]
-
-
-def is_medical_allowance_component(salary_component):
-	return cstr(salary_component).strip().lower() == MEDICAL_ALLOWANCE_COMPONENT.lower()
-
-
 @frappe.whitelist()
 def create_salary_assignment_from_employee(employee):
 	if not employee:
 		frappe.throw(_("Employee is required."))
 
 	employee_doc = frappe.get_doc("Employee", employee)
+	validate_salary_assignment_permissions(employee_doc)
+	assignment = _create_salary_assignment_from_employee(employee_doc)
+
+	frappe.msgprint(
+		_("Salary Structure Assignment {0} created for Employee {1}.").format(
+			frappe.bold(assignment.name), frappe.bold(employee_doc.name)
+		),
+		indicator="green",
+	)
+
+	return get_salary_assignment_result(employee_doc, assignment)
+
+
+def _create_salary_assignment_from_employee(employee_doc):
 	salary_structure = employee_doc.get("custom_salary_structure")
 	from_date = employee_doc.get("custom_salary_assignment_from_date")
 
@@ -298,143 +293,112 @@ def create_salary_assignment_from_employee(employee):
 		assignment.name,
 		update_modified=False,
 	)
+	return assignment
 
-	frappe.msgprint(
-		_("Salary Structure Assignment {0} created for Employee {1}.").format(
-			frappe.bold(assignment.name), frappe.bold(employee_doc.name)
-		),
-		indicator="green",
-	)
 
+def get_salary_assignment_result(employee_doc, assignment):
 	return {
-		"salary_structure": template.name,
+		"employee": employee_doc.name,
+		"employee_name": employee_doc.employee_name,
+		"salary_structure": assignment.salary_structure,
 		"salary_structure_assignment": assignment.name,
 	}
 
 
-def auto_create_medical_allowance_assignments():
-	today = getdate(nowdate())
-	employees = frappe.get_all(
-		"Employee",
-		filters={
-			"status": "Active",
-			"date_of_joining": ["is", "set"],
-			"custom_salary_structure": ["is", "set"],
-		},
-		fields=[
-			"name",
-			"date_of_joining",
-			"custom_salary_structure",
-			"custom_salary_assignment_from_date",
-		],
-	)
+def validate_salary_assignment_permissions(employee_doc):
+	employee_doc.check_permission("write")
+	for permission_type in ("create", "submit"):
+		if not frappe.has_permission("Salary Structure Assignment", ptype=permission_type):
+			frappe.throw(
+				_("You do not have permission to {0} Salary Structure Assignments.").format(
+					permission_type
+				),
+				frappe.PermissionError,
+			)
 
+
+@frappe.whitelist()
+def bulk_create_salary_assignments_from_employees(employees):
+	employee_names = normalize_employee_names(employees)
+	if not employee_names:
+		frappe.throw(_("Please select at least one Employee."))
+
+	validate_bulk_salary_assignment_permissions()
+	requested_by = frappe.session.user
+	if len(employee_names) > BULK_SALARY_ASSIGNMENT_SYNC_LIMIT:
+		frappe.enqueue(
+			"jtq_custom.payroll.process_bulk_salary_assignments",
+			queue="long",
+			timeout=3000,
+			enqueue_after_commit=True,
+			employee_names=employee_names,
+			requested_by=requested_by,
+			publish_result=True,
+		)
+		return {"queued": True, "total": len(employee_names)}
+
+	return process_bulk_salary_assignments(employee_names, requested_by=requested_by)
+
+
+def normalize_employee_names(employees):
+	if isinstance(employees, str):
+		employees = frappe.parse_json(employees)
+	if not isinstance(employees, (list, tuple)):
+		frappe.throw(_("Employees must be provided as a list."))
+
+	employee_names = []
 	for employee in employees:
-		assignment_from_date = get_medical_allowance_assignment_date(employee.date_of_joining)
-		if assignment_from_date > today:
-			continue
+		if isinstance(employee, dict):
+			employee = employee.get("name") or employee.get("employee")
+		employee = cstr(employee).strip()
+		if employee and employee not in employee_names:
+			employee_names.append(employee)
+	return employee_names
 
-		if has_medical_allowance_assignment(employee.name, assignment_from_date):
-			continue
 
+def validate_bulk_salary_assignment_permissions():
+	for permission_type in ("create", "submit"):
+		if not frappe.has_permission("Salary Structure Assignment", ptype=permission_type):
+			frappe.throw(
+				_("You do not have permission to {0} Salary Structure Assignments.").format(
+					permission_type
+				),
+				frappe.PermissionError,
+			)
+
+
+def process_bulk_salary_assignments(employee_names, requested_by=None, publish_result=False):
+	result = {"queued": False, "success": [], "failed": [], "total": len(employee_names)}
+	total = len(employee_names)
+
+	for index, employee in enumerate(employee_names, start=1):
+		savepoint = f"jtq_salary_assignment_{index}"
+		frappe.db.savepoint(savepoint)
 		try:
-			create_medical_allowance_assignment(employee.name, assignment_from_date)
-		except Exception:
-			frappe.log_error(
-				frappe.get_traceback(),
-				_("Medical Allowance Auto Assignment Failed for {0}").format(employee.name),
-			)
+			employee_doc = frappe.get_doc("Employee", employee)
+			validate_salary_assignment_permissions(employee_doc)
+			assignment = _create_salary_assignment_from_employee(employee_doc)
+		except Exception as exc:
+			frappe.db.rollback(save_point=savepoint)
+			result["failed"].append({"employee": employee, "message": cstr(exc)})
+			frappe.clear_messages()
+		else:
+			result["success"].append(get_salary_assignment_result(employee_doc, assignment))
 
-
-def has_medical_allowance_assignment(employee, assignment_from_date):
-	assignments = frappe.get_all(
-		"Salary Structure Assignment",
-		filters={
-			"employee": employee,
-			"docstatus": 1,
-			"from_date": [">=", assignment_from_date],
-		},
-		fields=["name", "salary_structure"],
-		order_by="from_date desc, creation desc",
-	)
-
-	return any(salary_structure_has_medical_allowance(row.salary_structure) for row in assignments)
-
-
-def salary_structure_has_medical_allowance(salary_structure):
-	return frappe.db.exists(
-		"Salary Detail",
-		{
-			"parent": salary_structure,
-			"parenttype": "Salary Structure",
-			"parentfield": "earnings",
-			"salary_component": MEDICAL_ALLOWANCE_COMPONENT,
-		},
-	)
-
-
-def create_medical_allowance_assignment(employee, assignment_from_date):
-	employee_doc = frappe.get_doc("Employee", employee)
-	if not employee_doc.get("custom_salary_structure"):
-		return
-
-	template = frappe.get_doc("Salary Structure", employee_doc.custom_salary_structure)
-	validate_salary_structure_for_employee_assignment(template)
-
-	if employee_doc.company != template.company:
-		frappe.throw(
-			_("Selected Salary Structure belongs to {0}, but Employee belongs to {1}.").format(
-				frappe.bold(template.company), frappe.bold(employee_doc.company)
-			)
+		frappe.publish_progress(
+			index * 100 / total,
+			title=_("Creating Salary Structure Assignments"),
 		)
 
-	if not salary_structure_has_medical_allowance(template.name):
-		return
-	validate_employee_income_tax_slab(employee_doc, template)
-
-	cancel_latest_salary_structure_assignment(employee_doc.name)
-
-	assignment = create_employee_salary_structure_assignment(
-		employee_doc,
-		template,
-		getdate(assignment_from_date),
-	)
-	employee_doc.db_set(
-		{
-			"custom_salary_assignment_from_date": assignment.from_date,
-			"custom_current_salary_structure_assignment": assignment.name,
-		},
-		update_modified=False,
-	)
-
-	return assignment
-
-
-def ensure_employee_medical_allowance_row(employee_doc, template):
-	if any(is_medical_allowance_component(row.salary_component) for row in employee_doc.get("custom_employee_earnings")):
-		return
-
-	template_medical_row = next(
-		(
-			row
-			for row in template.get("earnings")
-			if is_medical_allowance_component(row.salary_component)
-		),
-		None,
-	)
-	if not template_medical_row:
-		frappe.throw(
-			_("Salary Structure {0} does not contain Medical Allowance.").format(
-				frappe.bold(template.name)
-			)
+	if publish_result:
+		frappe.publish_realtime(
+			BULK_SALARY_ASSIGNMENT_EVENT,
+			message=result,
+			user=requested_by,
+			after_commit=True,
 		)
 
-	row = employee_doc.append("custom_employee_earnings", {})
-	for fieldname, value in get_employee_component_row(template_medical_row, zero_amount=False).items():
-		row.set(fieldname, value)
-
-	employee_doc.flags.ignore_permissions = True
-	employee_doc.save()
+	return result
 
 
 def validate_employee_salary_components(employee_doc):
@@ -508,7 +472,6 @@ def cancel_latest_salary_structure_assignment(employee):
 	assignment.flags.ignore_permissions = True
 	assignment.flags.skip_employee_salary_tab_clear = True
 	assignment.cancel()
-	unlink_cancelled_salary_structure_assignment(assignment.name, clear_salary_tab=False)
 
 
 def unlink_salary_structure_on_assignment_cancel(doc, method=None):
@@ -522,49 +485,48 @@ def unlink_cancelled_salary_structure_assignment(assignment, clear_salary_tab=Tr
 	assignment_data = frappe.db.get_value(
 		"Salary Structure Assignment",
 		assignment,
-		["employee", "salary_structure", "docstatus"],
+		["employee", "salary_structure", "income_tax_slab", "docstatus"],
 		as_dict=True,
 	)
 	if not assignment_data or assignment_data.docstatus != 2:
 		return
 
-	if not assignment_data.salary_structure:
-		return
-
 	employee_fields = frappe.db.get_value(
 		"Employee",
 		assignment_data.employee,
-		["custom_salary_structure", "custom_current_salary_structure_assignment"],
+		[
+			"custom_salary_structure",
+			"custom_salary_assignment_from_date",
+			"custom_current_salary_structure_assignment",
+			"custom_income_tax_slab",
+		],
 		as_dict=True,
 	)
 	if employee_fields:
 		updates = {}
+		latest_active_assignment = frappe.db.get_value(
+			"Salary Structure Assignment",
+			{"employee": assignment_data.employee, "docstatus": 1},
+			"name",
+			order_by="from_date desc, creation desc",
+		)
+		is_current_assignment = employee_fields.custom_current_salary_structure_assignment == assignment
+		is_stale_current_assignment = (
+			assignment_data.salary_structure
+			and not employee_fields.custom_current_salary_structure_assignment
+			and not latest_active_assignment
+			and employee_fields.custom_salary_structure == assignment_data.salary_structure
+		)
 		should_clear_salary_tab = clear_salary_tab and (
-			employee_fields.custom_current_salary_structure_assignment == assignment
-			or (
-				employee_fields.custom_salary_structure == assignment_data.salary_structure
-				and not has_active_salary_structure_assignment(
-					assignment_data.employee,
-					assignment_data.salary_structure,
-				)
-			)
+			is_current_assignment or is_stale_current_assignment
 		)
 
-		if employee_fields.custom_current_salary_structure_assignment == assignment:
+		if is_current_assignment:
 			updates["custom_current_salary_structure_assignment"] = None
-		if (
-			employee_fields.custom_salary_structure == assignment_data.salary_structure
-			and (
-				employee_fields.custom_current_salary_structure_assignment == assignment
-				or not has_active_salary_structure_assignment(
-					assignment_data.employee,
-					assignment_data.salary_structure,
-				)
-			)
-		):
-			updates["custom_salary_structure"] = None
 		if should_clear_salary_tab:
+			updates["custom_salary_structure"] = None
 			updates["custom_salary_assignment_from_date"] = None
+			updates["custom_income_tax_slab"] = None
 
 		if updates:
 			frappe.db.set_value(
@@ -576,13 +538,18 @@ def unlink_cancelled_salary_structure_assignment(assignment, clear_salary_tab=Tr
 		if should_clear_salary_tab:
 			clear_employee_salary_component_rows(assignment_data.employee)
 
-	frappe.db.set_value(
-		"Salary Structure Assignment",
-		assignment,
-		"salary_structure",
-		None,
-		update_modified=False,
-	)
+	assignment_updates = {}
+	if assignment_data.salary_structure:
+		assignment_updates["salary_structure"] = None
+	if assignment_data.income_tax_slab:
+		assignment_updates["income_tax_slab"] = None
+	if assignment_updates:
+		frappe.db.set_value(
+			"Salary Structure Assignment",
+			assignment,
+			assignment_updates,
+			update_modified=False,
+		)
 
 
 def clear_employee_salary_component_rows(employee):
@@ -597,24 +564,6 @@ def clear_employee_salary_component_rows(employee):
 		)
 
 
-def has_active_salary_structure_assignment(employee, salary_structure):
-	return frappe.db.exists(
-		"Salary Structure Assignment",
-		{
-			"employee": employee,
-			"salary_structure": salary_structure,
-			"docstatus": 1,
-		},
-	)
-
-
-def is_employee_generated_salary_structure(employee, salary_structure):
-	if not employee or not salary_structure:
-		return False
-
-	return cstr(salary_structure).startswith(f"{employee}-SS-")
-
-
 def unlink_cancelled_employee_salary_structure_assignments():
 	for assignment in frappe.get_all(
 		"Salary Structure Assignment",
@@ -627,60 +576,6 @@ def unlink_cancelled_employee_salary_structure_assignments():
 		unlink_cancelled_salary_structure_assignment(assignment)
 
 	frappe.db.commit()
-
-
-def create_employee_salary_structure(employee_doc, template, assignment_from_date):
-	new_structure = frappe.new_doc("Salary Structure")
-	new_structure.name = make_autoname(f"{employee_doc.name}-SS-.#####")
-	new_structure.company = template.company
-	new_structure.currency = template.currency
-	new_structure.is_active = "Yes"
-	new_structure.is_default = "No"
-	new_structure.salary_slip_based_on_timesheet = template.get("salary_slip_based_on_timesheet")
-	new_structure.payroll_frequency = template.get("payroll_frequency")
-	new_structure.salary_component = template.get("salary_component")
-	new_structure.hour_rate = template.get("hour_rate")
-	new_structure.leave_encashment_amount_per_day = template.get("leave_encashment_amount_per_day")
-	new_structure.max_benefits = template.get("max_benefits")
-	new_structure.mode_of_payment = template.get("mode_of_payment")
-	new_structure.payment_account = template.get("payment_account")
-
-	for source_row in employee_doc.get("custom_employee_earnings"):
-		append_salary_structure_component(new_structure, "earnings", source_row)
-	for source_row in employee_doc.get("custom_employee_deductions"):
-		append_salary_structure_component(new_structure, "deductions", source_row)
-
-	new_structure.flags.ignore_permissions = True
-	new_structure.insert()
-	new_structure.submit()
-	return new_structure
-
-
-def append_salary_structure_component(salary_structure, table_field, source_row):
-	row = salary_structure.append(table_field, {})
-	row.salary_component = source_row.salary_component
-	row.abbr = source_row.abbr
-	row.amount = flt(source_row.amount)
-	row.default_amount = flt(source_row.get("default_amount")) or flt(source_row.amount)
-	row.additional_amount = flt(source_row.get("additional_amount"))
-	row.additional_salary = source_row.get("additional_salary")
-	row.is_recurring_additional_salary = source_row.get("is_recurring_additional_salary")
-	row.condition = source_row.condition or ""
-	row.formula = source_row.formula or ""
-	row.amount_based_on_formula = source_row.amount_based_on_formula
-	row.depends_on_payment_days = source_row.depends_on_payment_days
-	row.is_tax_applicable = source_row.is_tax_applicable
-	row.is_flexible_benefit = source_row.is_flexible_benefit
-	row.variable_based_on_taxable_salary = source_row.variable_based_on_taxable_salary
-	row.statistical_component = source_row.statistical_component
-	row.exempted_from_income_tax = source_row.exempted_from_income_tax
-	row.do_not_include_in_total = source_row.do_not_include_in_total
-	row.do_not_include_in_accounts = source_row.do_not_include_in_accounts
-	row.deduct_full_tax_on_selected_payroll_date = source_row.deduct_full_tax_on_selected_payroll_date
-	row.tax_on_flexible_benefit = flt(source_row.get("tax_on_flexible_benefit"))
-	row.tax_on_additional_salary = flt(source_row.get("tax_on_additional_salary"))
-	row.custom_jtq_auto_populated = 1
-	row.custom_jtq_amount_changed = 1
 
 
 def create_employee_salary_structure_assignment(employee_doc, salary_structure, from_date):

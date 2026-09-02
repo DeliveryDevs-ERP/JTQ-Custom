@@ -1,13 +1,13 @@
 import frappe
 from frappe import _
-from frappe.utils import add_months, cstr, flt, getdate
+from frappe.utils import cint, flt, getdate
 
 from hrms.payroll.doctype.salary_slip.salary_slip import (
 	SalarySlip,
 	get_salary_component_data,
 )
 
-from jtq_custom.payroll import get_month_count
+from jtq_custom.payroll import get_month_count, is_earning_eligible
 
 
 class JTQSalarySlip(SalarySlip):
@@ -35,8 +35,7 @@ class JTQSalarySlip(SalarySlip):
 	def add_structure_component(self, struct_row, component_type):
 		if (
 			component_type == "earnings"
-			and is_medical_allowance_component(struct_row.salary_component)
-			and not self.is_medical_allowance_eligible()
+			and not self.is_structure_earning_eligible(struct_row.salary_component)
 		):
 			self.data[struct_row.abbr] = 0
 			self.default_data[struct_row.abbr] = 0
@@ -60,32 +59,30 @@ class JTQSalarySlip(SalarySlip):
 	def add_additional_salary_components(self, component_type):
 		super().add_additional_salary_components(component_type)
 
-		if component_type == "earnings":
-			self.apply_medical_allowance_eligibility()
-
 		if component_type == "deductions":
 			self.apply_advance_recovery_controls()
 
-	def is_medical_allowance_eligible(self):
-		joining_date = frappe.db.get_value("Employee", self.employee, "date_of_joining")
-		if not (joining_date and self.start_date):
-			return False
-
-		eligibility_date = add_months(getdate(joining_date), 6)
-		return getdate(self.start_date) >= eligibility_date
-
-	def apply_medical_allowance_eligibility(self):
-		if self.is_medical_allowance_eligible():
-			return
-
-		self.set(
-			"earnings",
-			[
-				row
-				for row in self.get("earnings")
-				if not is_medical_allowance_component(row.salary_component)
-			],
+	def is_structure_earning_eligible(self, salary_component):
+		eligibility_after_days = self.get_component_eligibility_after_days(salary_component)
+		joining_date = self.get("joining_date") or frappe.db.get_value(
+			"Employee", self.employee, "date_of_joining"
 		)
+		return is_earning_eligible(joining_date, self.start_date, eligibility_after_days)
+
+	def get_component_eligibility_after_days(self, salary_component):
+		if not hasattr(self, "_jtq_component_eligibility_days"):
+			self._jtq_component_eligibility_days = {}
+
+		if salary_component not in self._jtq_component_eligibility_days:
+			self._jtq_component_eligibility_days[salary_component] = cint(
+				frappe.get_cached_value(
+					"Salary Component",
+					salary_component,
+					"custom_eligibility_after_days",
+				)
+			)
+
+		return self._jtq_component_eligibility_days[salary_component]
 
 	def apply_advance_recovery_controls(self):
 		for additional_salary in get_active_advance_recoveries(
@@ -277,10 +274,6 @@ def get_salary_detail_override_fields():
 		"tax_on_flexible_benefit",
 		"tax_on_additional_salary",
 	]
-
-
-def is_medical_allowance_component(salary_component):
-	return cstr(salary_component).strip().lower() == "medical allowance"
 
 
 def get_active_advance_recoveries(employee, start_date, end_date):

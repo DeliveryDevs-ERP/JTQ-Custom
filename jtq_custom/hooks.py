@@ -35,6 +35,7 @@ doctype_js = {
 
 doctype_list_js = {
 	"Attendance": "public/js/attendance_list.js",
+	"Employee": "public/js/employee_list.js",
 }
 
 override_doctype_class = {
@@ -91,12 +92,6 @@ doc_events = {
 	},
 }
 
-scheduler_events = {
-	"daily": [
-		"jtq_custom.payroll.auto_create_medical_allowance_assignments",
-	],
-}
-
 after_install = "jtq_custom.patches.add_bulk_attendance_custom_fields.execute"
 after_migrate = [
 	"jtq_custom.patches.add_bulk_attendance_custom_fields.execute",
@@ -119,4 +114,5 @@ after_migrate = [
 	"jtq_custom.patches.rework_employee_joining_location_fields.execute",
 	"jtq_custom.patches.add_employee_bank_branch_fields.execute",
 	"jtq_custom.patches.add_employee_income_tax_slab_field.execute",
+	"jtq_custom.patches.add_salary_component_eligibility_days.execute",
 ]
